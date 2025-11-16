@@ -17,7 +17,7 @@ export class GeoGebraManager extends EventBus {
             enableRightClick: true,
             enableShiftDragZoom: true,
             showResetIcon: true,
-            language: 'fr',
+            language: 'en',
             enableLabelDrags: false,
             allowStyleBar: false,
             showZoomButtons: true,

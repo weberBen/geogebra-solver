@@ -21,7 +21,7 @@ class App {
             this.ui = new GeoGebraOptimizerUI({
                 container: document.getElementById('app'),
                 optimizer: this.optimizer,
-                locale: 'fr' // or 'en'
+                locale: 'en' // or 'fr'
             });
 
             // Initialize
