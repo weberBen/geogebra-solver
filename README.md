@@ -1,4 +1,4 @@
-# GeoGebra Optimizer - Monorepo
+# GeoGebra Solver - Monorepo
 
 > The GeoGebra solver that nobody asked for
 
