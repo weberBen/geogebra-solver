@@ -214,10 +214,6 @@ await ui.init({ geogebraXML: xmlContent });
 - [CMA-ES Python Library](https://github.com/CMA-ES/pycma)
 - [CMA-ES Algorithm](https://en.wikipedia.org/wiki/CMA-ES)
 
-## License
-
-MIT
-
 ## Disclaimer
 
 Used with Claude Code 2.0.42
