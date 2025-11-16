@@ -2,7 +2,7 @@
 
 > The GeoGebra solver that nobody asked for
 
-![Demo loading...](assets/demo.gif)
+![Demo loading...Please wait...](assets/demo.gif)
 
 Interactive web application combining GeoGebra and CMA-ES optimization (Covariance Matrix Adaptation Evolution Strategy) via PyOdide (Python in WebAssembly).
 
