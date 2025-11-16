@@ -1,8 +1,8 @@
 import { EventBus } from './EventBus.js';
 
 /**
- * GeoGebraManager - Gère GeoGebra et les contraintes (sliders)
- * Émet des événements pour le suivi de l'état
+ * GeoGebraManager - Manages GeoGebra and constraints (sliders)
+ * Emits events for state tracking
  */
 export class GeoGebraManager extends EventBus {
     constructor(options = {}) {
@@ -27,9 +27,9 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Initialise GeoGebra avec un fichier XML
-     * @param {HTMLElement} container - Conteneur DOM pour GeoGebra
-     * @param {string} xmlContent - Contenu XML GeoGebra
+     * Initialize GeoGebra with an XML file
+     * @param {HTMLElement} container - DOM container for GeoGebra
+     * @param {string} xmlContent - GeoGebra XML content
      */
     async init(container, xmlContent) {
         this.emit('geogebra:loading', {});
@@ -45,9 +45,9 @@ export class GeoGebraManager extends EventBus {
                 appletOnLoad: async (api) => {
                     try {
                         this.ggbApp = api;
-                        console.log('GeoGebra applet chargée');
+                        console.log('GeoGebra applet loaded');
 
-                        // Charger le XML
+                        // Load the XML
                         api.setXML(xmlContent);
 
                         // Configuration
@@ -57,7 +57,7 @@ export class GeoGebraManager extends EventBus {
                             api.setAxesVisible(false, false);
                             api.setMode(40);
 
-                            // Extraire les sliders
+                            // Extract sliders
                             await this.extractSliders(xmlContent);
 
                             // Setup resize observer for responsive sizing
@@ -82,14 +82,14 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Extrait les sliders depuis le XML et l'API GeoGebra
-     * @param {string} xmlContent - Contenu XML
+     * Extract sliders from XML and GeoGebra API
+     * @param {string} xmlContent - XML content
      */
     async extractSliders(xmlContent) {
-        // Récupérer tous les objets numériques (sliders)
+        // Get all numeric objects (sliders)
         const numericObjects = this.ggbApp.getAllObjectNames('numeric');
 
-        // Parser le XML pour obtenir les bornes
+        // Parse XML to get bounds
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
 
@@ -127,7 +127,7 @@ export class GeoGebraManager extends EventBus {
             }
         }
 
-        // Cacher les sliders dans GeoGebra
+        // Hide sliders in GeoGebra
         this.sliders.forEach(slider => {
             this.ggbApp.setVisible(slider.name, false);
         });
@@ -136,22 +136,22 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Retourne tous les sliders
+     * Return all sliders
      */
     getSliders() {
         return this.sliders;
     }
 
     /**
-     * Retourne un slider spécifique
-     * @param {string} name - Nom du slider
+     * Return a specific slider
+     * @param {string} name - Slider name
      */
     getSlider(name) {
         return this.sliders.find(s => s.name === name);
     }
 
     /**
-     * Retourne les valeurs actuelles de tous les sliders
+     * Return current values of all sliders
      */
     getSliderValues() {
         const values = {};
@@ -162,9 +162,9 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Définit la valeur d'un slider
-     * @param {string} name - Nom du slider
-     * @param {number} value - Nouvelle valeur
+     * Set the value of a slider
+     * @param {string} name - Slider name
+     * @param {number} value - New value
      */
     setSliderValue(name, value) {
         const slider = this.getSlider(name);
@@ -175,7 +175,7 @@ export class GeoGebraManager extends EventBus {
         const oldValue = this.ggbApp.getValue(name);
         this.ggbApp.setValue(name, value);
 
-        // Mettre à jour dans notre cache
+        // Update in our cache
         slider.value = value;
 
         this.emit('slider:changed', {
@@ -187,7 +187,7 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Définit les valeurs de plusieurs sliders
+     * Set values of multiple sliders
      * @param {Object} values - { sliderName: value, ... }
      */
     setSliderValues(values) {
@@ -203,14 +203,14 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Rafraîchit les sliders (utile si changement dans GeoGebra)
+     * Refresh sliders (useful if changes in GeoGebra)
      */
     async refreshSliders(xmlContent) {
         await this.extractSliders(xmlContent);
     }
 
     /**
-     * Enregistre un listener pour les mises à jour GeoGebra
+     * Register a listener for GeoGebra updates
      */
     registerUpdateListener(callback) {
         if (this.ggbApp) {
@@ -219,9 +219,9 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Calcule la distance entre deux points
-     * @param {string} point1 - Nom du premier point
-     * @param {string} point2 - Nom du second point
+     * Calculate the distance between two points
+     * @param {string} point1 - Name of the first point
+     * @param {string} point2 - Name of the second point
      */
     calculateDistance(point1 = 'A', point2 = "A'") {
         try {
@@ -232,14 +232,14 @@ export class GeoGebraManager extends EventBus {
 
             return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
         } catch (e) {
-            console.error("Erreur calcul distance:", e);
+            console.error("Distance calculation error:", e);
             return NaN;
         }
     }
 
     /**
-     * Cache les éléments décoratifs (pour export propre)
-     * @returns {Object} État original de visibilité { objName: boolean }
+     * Hide decorative elements (for clean export)
+     * @returns {Object} Original visibility state { objName: boolean }
      */
     hideDecorativeElements() {
         if (!this.ggbApp) {
@@ -248,14 +248,14 @@ export class GeoGebraManager extends EventBus {
         }
 
         const decorativeTypes = [
-            'text',       // Textes
-            'numeric',    // Sliders + mesures (distance, area, slope)
-            'angle',      // Angles et mesures d'angles
+            'text',       // Text
+            'numeric',    // Sliders + measurements (distance, area, slope)
+            'angle',      // Angles and angle measurements
             'boolean',    // Checkboxes
-            'button',     // Boutons
+            'button',     // Buttons
             'textfield',  // Input boxes
             'image',      // Images
-            'point'       // Tous les points
+            'point'       // All points
         ];
 
         const originalVisibility = {};
@@ -264,10 +264,10 @@ export class GeoGebraManager extends EventBus {
             try {
                 const objects = this.ggbApp.getAllObjectNames(type);
                 objects.forEach(objName => {
-                    // Stocker l'état original
+                    // Store original state
                     originalVisibility[objName] = this.ggbApp.getVisible(objName);
 
-                    // Cacher l'objet
+                    // Hide object
                     this.ggbApp.setVisible(objName, false);
                 });
             } catch (e) {
@@ -279,8 +279,8 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Restaure la visibilité des éléments
-     * @param {Object} originalVisibility - État de visibilité { objName: boolean }
+     * Restore visibility of elements
+     * @param {Object} originalVisibility - Visibility state { objName: boolean }
      */
     restoreVisibility(originalVisibility) {
         if (!this.ggbApp || !originalVisibility) {
@@ -297,21 +297,21 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Retourne l'API GeoGebra
+     * Return the GeoGebra API
      */
     getAPI() {
         return this.ggbApp;
     }
 
     /**
-     * Vérifie si GeoGebra est prêt
+     * Check if GeoGebra is ready
      */
     isReady() {
         return this.ggbApp !== null;
     }
 
     /**
-     * Met à jour la taille de GeoGebra basée sur le conteneur
+     * Update GeoGebra size based on container
      */
     updateSize() {
         if (this.ggbApp && this.container) {
@@ -324,7 +324,7 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Configure un observer pour détecter les changements de taille du conteneur
+     * Set up an observer to detect container size changes
      */
     setupResizeObserver() {
         if (!this.container) return;
@@ -342,7 +342,7 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Nettoie les ressources
+     * Clean up resources
      */
     destroy() {
         // Disconnect resize observer

@@ -10,12 +10,12 @@ const PORT = process.env.PORT || 8000;
 
 // ===== MIDDLEWARE =====
 
-// Servir les fichiers statiques de l'app
+// Serve static files from the app
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ===== ROUTES POUR LES PACKAGES =====
+// ===== PACKAGE ROUTES =====
 
-// Servir le package geogebra-optimizer-ui
+// Serve the geogebra-optimizer-ui package
 app.use('/packages/geogebra-optimizer-ui', express.static(
   path.join(__dirname, '../packages/geogebra-optimizer-ui'),
   {
@@ -31,7 +31,7 @@ app.use('/packages/geogebra-optimizer-ui', express.static(
   }
 ));
 
-// Servir le package geogebra-optimizer
+// Serve the geogebra-optimizer package
 app.use('/packages/geogebra-optimizer', express.static(
   path.join(__dirname, '../packages/geogebra-optimizer'),
   {
@@ -45,7 +45,7 @@ app.use('/packages/geogebra-optimizer', express.static(
   }
 ));
 
-// Servir le dossier examples
+// Serve the examples directory
 app.use('/examples', express.static(
   path.join(__dirname, '../examples'),
   {
@@ -57,14 +57,14 @@ app.use('/examples', express.static(
   }
 ));
 
-// ===== ROUTE RACINE =====
+// ===== ROOT ROUTE =====
 
-// Page principale
+// Main page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-// ===== GESTION D'ERREURS =====
+// ===== ERROR HANDLING =====
 
 // 404 handler
 app.use((req, res) => {
@@ -77,7 +77,7 @@ app.use((err, req, res, next) => {
   res.status(500).send('Server Error');
 });
 
-// ===== DÉMARRAGE DU SERVEUR =====
+// ===== SERVER STARTUP =====
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}/`);

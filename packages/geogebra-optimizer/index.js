@@ -1,6 +1,6 @@
 /**
  * GeoGebra Optimizer Library
- * Librairie d'optimisation CMA-ES pour GeoGebra
+ * CMA-ES optimization library for GeoGebra
  *
  * @module geogebra-optimizer
  */

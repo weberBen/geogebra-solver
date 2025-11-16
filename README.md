@@ -1,156 +1,160 @@
 # GeoGebra Optimizer - Monorepo
 
-Application web interactive combinant GeoGebra et l'optimisation CMA-ES (Covariance Matrix Adaptation Evolution Strategy) via PyOdide (Python en WebAssembly).
+> The GeoGebra solver that nobody asked for
+
+![Demo](assets/demo.gif)
+
+Interactive web application combining GeoGebra and CMA-ES optimization (Covariance Matrix Adaptation Evolution Strategy) via PyOdide (Python in WebAssembly).
 
 ## TODO
 
-- [ ] Ajouter les contraintes supplémentaires avec ConstrainedFitnessAL
+- [ ] Add additional constraints with ConstrainedFitnessAL
 
-## Architecture du projet
+## Project Architecture
 
-Ce projet est organisé en **monorepo** avec npm workspaces :
+This project is organized as a **monorepo** with npm workspaces:
 
 ```
 /
 ├── packages/
-│   ├── geogebra-optimizer/          # 📦 Package core (engine d'optimisation)
+│   ├── geogebra-optimizer/          # 📦 Core package (optimization engine)
 │   │   ├── src/
-│   │   │   ├── GeoGebraOptimizer.js # Engine principal
-│   │   │   ├── PyodideManager.js    # Gestion de Pyodide
-│   │   │   ├── GeoGebraManager.js   # Gestion de GeoGebra API
-│   │   │   └── EventBus.js          # Système événementiel
+│   │   │   ├── GeoGebraOptimizer.js # Main engine
+│   │   │   ├── PyodideManager.js    # Pyodide management
+│   │   │   ├── GeoGebraManager.js   # GeoGebra API management
+│   │   │   └── EventBus.js          # Event system
 │   │   └── package.json
 │   │
-│   └── geogebra-optimizer-ui/       # 🎨 Package UI (Web Components)
+│   └── geogebra-optimizer-ui/       # 🎨 UI package (Web Components)
 │       ├── src/
 │       │   ├── GeoGebraOptimizerUI.js
 │       │   ├── BaseModule.js
-│       │   └── modules/             # Modules UI (SliderPanel, MetricsPanel, etc.)
+│       │   └── modules/             # UI modules (SliderPanel, MetricsPanel, etc.)
 │       ├── styles/
-│       ├── locales/                 # Traductions (fr, en)
+│       ├── locales/                 # Translations (fr, en)
 │       └── package.json
 │
-├── app/                             # 🚀 Application coquille
-│   ├── server.js                    # Serveur Express
+├── app/                             # 🚀 Shell application
+│   ├── server.js                    # Express server
 │   ├── public/
-│   │   ├── index.html               # Point d'entrée (avec CDN Pyodide et GeoGebra)
-│   │   ├── main.js                  # Initialisation de l'UI
+│   │   ├── index.html               # Entry point (with Pyodide and GeoGebra CDN)
+│   │   ├── main.js                  # UI initialization
 │   │   └── assets/
-│   │       └── geogebra.xml         # Fichier GeoGebra
+│   │       └── geogebra.xml         # GeoGebra file
 │   └── package.json
 │
-└── package.json                     # Configuration workspace racine
+└── package.json                     # Root workspace configuration
 ```
 
-## ⚠️ Dépendances externes requises
+## ⚠️ Required External Dependencies
 
-**Important** : Les packages utilisent des **dépendances externes** qui doivent être chargées dans votre HTML :
+**Important**: The packages use **external dependencies** that must be loaded in your HTML:
 
-### Dans `index.html` :
+### In `index.html`:
 
 ```html
-<!-- Pyodide CDN - Requis par geogebra-optimizer -->
+<!-- Pyodide CDN - Required by geogebra-optimizer -->
 <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
 
-<!-- GeoGebra API - Requis par geogebra-optimizer -->
+<!-- GeoGebra API - Required by geogebra-optimizer -->
 <script src="https://www.geogebra.org/apps/deployggb.js"></script>
 
-<!-- Styles du package geogebra-optimizer-ui - Requis pour l'UI -->
+<!-- geogebra-optimizer-ui package styles - Required for UI -->
 <link rel="stylesheet" href="/packages/geogebra-optimizer-ui/styles/default.css">
 ```
 
-**Pourquoi ?**
-- Les packages `geogebra-optimizer` et `geogebra-optimizer-ui` sont des **modules ES6**
-- **Scripts CDN** : Pyodide et GeoGebra sont des scripts **UMD/global** qui exposent `window.loadPyodide` et `window.GGBApplet` - impossible de les importer en ES6
-- **CSS** : Les styles du package UI doivent être chargés explicitement via `<link>` dans le HTML
-- Le package optimizer **utilise** `window.loadPyodide` mais ne le **charge pas** lui-même
+**Why?**
+- The `geogebra-optimizer` and `geogebra-optimizer-ui` packages are **ES6 modules**
+- **CDN Scripts**: Pyodide and GeoGebra are **UMD/global** scripts that expose `window.loadPyodide` and `window.GGBApplet` - impossible to import them as ES6
+- **CSS**: The UI package styles must be explicitly loaded via `<link>` in the HTML
+- The optimizer package **uses** `window.loadPyodide` but doesn't **load** it itself
 
 ## Installation
 
 ```bash
-# À la racine du projet
+# At the project root
 npm install
 ```
 
-npm workspaces va automatiquement :
-- Installer les dépendances de tous les packages
-- Créer les liens symboliques entre les packages
-- Installer Express pour l'app coquille
+npm workspaces will automatically:
+- Install dependencies for all packages
+- Create symbolic links between packages
+- Install Express for the shell app
 
-## Utilisation
+## Usage
 
-### Démarrer l'application
+### Start the application
 
 ```bash
-# Depuis la racine
+# From the root
 npm start
 
-# Ou directement dans /app
+# Or directly in /app
 cd app
 node server.js
 ```
 
-L'application sera accessible sur **http://localhost:8000/**
+The application will be accessible at **http://localhost:8000/**
 
-### Utiliser l'optimiseur
+### Using the optimizer
 
-1. **Chargement initial** : Attendez que Pyodide et CMA-ES soient chargés (~10-30 secondes)
-2. **Sélection des sliders** : Cochez/décochez les sliders que vous souhaitez optimiser
-3. **Paramétrage** : Ajustez les paramètres du solver (optionnel)
-4. **Démarrage** : Cliquez sur "Démarrer l'optimisation"
-5. **Suivi** : Observez les métriques, logs et historique en temps réel
-6. **Arrêt** : Cliquez sur "Arrêter" pour interrompre l'optimisation
+1. **Initial loading**: Wait for Pyodide and CMA-ES to load (~10-30 seconds)
+2. **Slider selection**: Check/uncheck the sliders you want to optimize
+3. **Configuration**: Adjust solver parameters (optional)
+4. **Start**: Click on "Start optimization"
+5. **Monitoring**: Observe metrics, logs and history in real-time
+6. **Stop**: Click on "Stop" to interrupt optimization
 
-## Fonctionnalités
+## Features
 
-### 🎨 Interface GeoGebra
-- Affichage interactif de la construction géométrique
-- Manipulation des points et sliders en temps réel
-- Visualisation de l'optimisation en direct
+### 🎨 GeoGebra Interface
+- Interactive display of geometric construction
+- Real-time manipulation of points and sliders
+- Live optimization visualization
 
-### 🧬 Optimisation CMA-ES
-- **Algorithme évolutionnaire** : CMA-ES pour optimisation globale
-- **Fonction objectif** : Minimisation de la distance entre A' et A avec régularisation L2
-- **Sélection flexible** : Choisissez quels sliders optimiser
-- **Paramètres configurables** : maxiter, popsize, sigma, tolfun, lambda
+### 🧬 CMA-ES Optimization
+- **Evolutionary algorithm**: CMA-ES for global optimization
+- **Objective function**: Minimize distance between A' and A with L2 regularization
+- **Flexible selection**: Choose which sliders to optimize
+- **Configurable parameters**: maxiter, popsize, sigma, tolfun, lambda
 
-### 📊 Métriques en temps réel
-- Distance actuelle et meilleure distance
-- Fitness et pénalité de régularisation
-- Deltas des sliders
-- Génération et nombre d'évaluations
-- Barre de progression
+### 📊 Real-time Metrics
+- Current distance and best distance
+- Fitness and regularization penalty
+- Slider deltas
+- Generation and number of evaluations
+- Progress bar
 
-### 📜 Historique (Snapshots)
-- Sauvegarde automatique avant/après optimisation
-- Restauration de n'importe quel snapshot
-- Calcul des deltas par rapport au snapshot précédent
+### 📜 History (Snapshots)
+- Automatic save before/after optimization
+- Restore any snapshot
+- Calculate deltas from previous snapshot
 
 ### 📤 Export
-- **Exports directs** : SVG, PNG (avec scale), PDF, XML
-- **Export serveur** : DXF via webhook (conversion Bézier → polylines)
-- **Options** : Fond transparent, masquage des éléments décoratifs
+- **Direct exports**: SVG, PNG (with scale), PDF, XML
+- **Server export**: DXF via webhook (Bézier → polylines conversion)
+- **Options**: Transparent background, hide decorative elements
 
-## Conventions GeoGebra
+## GeoGebra Conventions
 
-### Nommage des points
+### Point Naming
 
-- **Point de départ** : Le point de départ de votre construction doit être nommé **`A`**
-- **Point d'arrivée** : Le point d'arrivée (pour les figures fermées) doit être nommé **`A'`**
+- **Starting point**: Your construction's starting point must be named **`A`**
+- **End point**: The end point (for closed figures) must be named **`A'`**
 
-L'objectif de l'optimisation est de minimiser la distance entre ces deux points.
+The optimization goal is to minimize the distance between these two points.
 
-### Sliders cachés
+### Hidden Sliders
 
-Les sliders peuvent être cachés dans GeoGebra :
-- **Variables d'optimisation** : Les sliders cachés sont toujours utilisés comme variables
-- **Affichage UI** : Les sliders cachés ne sont PAS affichés dans le panneau
-- **Pénalité L2** : Les sliders cachés sont EXCLUS du calcul de la pénalité de régularisation
-- **Sélection automatique** : Les sliders cachés sont automatiquement sélectionnés
+Sliders can be hidden in GeoGebra:
+- **Optimization variables**: Hidden sliders are always used as variables
+- **UI display**: Hidden sliders are NOT displayed in the panel
+- **L2 penalty**: Hidden sliders are EXCLUDED from regularization penalty calculation
+- **Automatic selection**: Hidden sliders are automatically selected
 
-## Développement des packages
+## Package Development
 
-### Package `geogebra-optimizer` (Core)
+### `geogebra-optimizer` Package (Core)
 
 ```javascript
 import { GeoGebraOptimizer } from 'geogebra-optimizer';
@@ -182,38 +186,38 @@ const ui = new GeoGebraOptimizerUI({
 await ui.init({ geogebraXML: xmlContent });
 ```
 
-## Stack technologique
+## Tech Stack
 
-- **Frontend** : Vanilla JavaScript (ES6+), Web Components
-- **GeoGebra API** : `deployggb.js` (CDN)
-- **Pyodide 0.24.1** : Python dans le navigateur via WebAssembly (CDN)
-- **CMA-ES** : Algorithme d'optimisation évolutionnaire (installé via micropip)
-- **Backend** : Node.js + Express
-- **Monorepo** : npm workspaces
+- **Frontend**: Vanilla JavaScript (ES6+), Web Components
+- **GeoGebra API**: `deployggb.js` (CDN)
+- **Pyodide 0.24.1**: Python in the browser via WebAssembly (CDN)
+- **CMA-ES**: Evolutionary optimization algorithm (installed via micropip)
+- **Backend**: Node.js + Express
+- **Monorepo**: npm workspaces
 
 ## Performance
 
-### Temps de chargement
-- **Pyodide** : ~10-30 secondes (première fois, puis mis en cache)
-- **CMA-ES** : ~2-5 secondes
-- **GeoGebra** : ~1-2 secondes
+### Loading Time
+- **Pyodide**: ~10-30 seconds (first time, then cached)
+- **CMA-ES**: ~2-5 seconds
+- **GeoGebra**: ~1-2 seconds
 
-### Vitesse d'optimisation
-- **Évaluations/seconde** : ~20-30 (dépend du navigateur)
-- **Génération typique** : ~0.5-1 seconde (popsize=10)
-- **Convergence** : 10-50 générations (selon la complexité)
+### Optimization Speed
+- **Evaluations/second**: ~20-30 (depends on browser)
+- **Typical generation**: ~0.5-1 second (popsize=10)
+- **Convergence**: 10-50 generations (depending on complexity)
 
-## Références
+## References
 
 - [GeoGebra API Documentation](https://wiki.geogebra.org/en/Reference:JavaScript)
 - [PyOdide Documentation](https://pyodide.org/en/stable/)
 - [CMA-ES Python Library](https://github.com/CMA-ES/pycma)
 - [CMA-ES Algorithm](https://en.wikipedia.org/wiki/CMA-ES)
 
-## Licence
+## License
 
 MIT
 
-## Auteur
+## Author
 
-Créé avec Claude Code
+Created with Claude Code

@@ -1,8 +1,8 @@
 import { EventBus } from './EventBus.js';
 
 /**
- * PyodideManager - Gère le chargement et l'utilisation de PyOdide
- * Émet des événements pour le suivi du chargement
+ * PyodideManager - Manages PyOdide loading and usage
+ * Emits events for load tracking
  */
 export class PyodideManager extends EventBus {
     constructor(options = {}) {
@@ -16,21 +16,21 @@ export class PyodideManager extends EventBus {
     }
 
     /**
-     * Initialise PyOdide
+     * Initialize PyOdide
      */
     async init() {
         this.emit('pyodide:loading', {});
 
         try {
-            // Charger PyOdide
+            // Load PyOdide
             this.pyodide = await window.loadPyodide({
                 indexURL: this.options.indexURL
             });
 
-            // Charger les packages de base
+            // Load basic packages
             await this.pyodide.loadPackage(this.options.packages);
 
-            // Installer CMA-ES
+            // Install CMA-ES
             const micropip = this.pyodide.pyimport('micropip');
             await micropip.install('cma');
 
@@ -46,23 +46,23 @@ export class PyodideManager extends EventBus {
     }
 
     /**
-     * Charge les modules Python depuis du code source
+     * Load Python modules from source code
      * @param {Object} pythonFiles - { optimizer: code, fitness: code }
      */
     async loadPythonModules(pythonFiles) {
         try {
-            // Charger optimizer.py
+            // Load optimizer.py
             if (pythonFiles.optimizer) {
                 await this.pyodide.runPythonAsync(pythonFiles.optimizer);
             }
 
-            // Charger fitness.py
+            // Load fitness.py
             if (pythonFiles.fitness) {
                 await this.pyodide.runPythonAsync(pythonFiles.fitness);
             }
 
             this.emit('log', {
-                message: 'Modules Python chargés avec succès',
+                message: 'Python modules loaded successfully',
                 level: 'info',
                 timestamp: new Date()
             });
@@ -76,9 +76,9 @@ export class PyodideManager extends EventBus {
     }
 
     /**
-     * Exécute du code Python
-     * @param {string} code - Code Python à exécuter
-     * @returns {Promise<*>} Résultat de l'exécution
+     * Execute Python code
+     * @param {string} code - Python code to execute
+     * @returns {Promise<*>} Execution result
      */
     async runPython(code) {
         if (!this.pyodide) {
@@ -98,21 +98,21 @@ export class PyodideManager extends EventBus {
     }
 
     /**
-     * Retourne l'API PyOdide
+     * Return the PyOdide API
      */
     getAPI() {
         return this.pyodide;
     }
 
     /**
-     * Vérifie si PyOdide est prêt
+     * Check if PyOdide is ready
      */
     isReady() {
         return this.pyodide !== null;
     }
 
     /**
-     * Nettoie les ressources
+     * Clean up resources
      */
     destroy() {
         this.pyodide = null;

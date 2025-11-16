@@ -1,10 +1,10 @@
-// Import des packages via import maps (défini dans index.html)
+// Import packages via import maps (defined in index.html)
 import { GeoGebraOptimizer } from 'geogebra-optimizer';
 import { GeoGebraOptimizerUI } from 'geogebra-optimizer-ui';
 
 /**
- * Application coquille pour GeoGebra Optimizer
- * Utilise les packages comme de vraies dépendances NPM
+ * Shell application for GeoGebra Optimizer
+ * Uses packages as real NPM dependencies
  */
 class App {
     constructor() {
@@ -14,28 +14,28 @@ class App {
 
     async init() {
         try {
-            // Charger le fichier GeoGebra XML
+            // Load the GeoGebra XML file
             const xmlContent = await fetch('/examples/geogebra.xml').then(r => r.text());
 
-            // Créer l'interface utilisateur
+            // Create the user interface
             this.ui = new GeoGebraOptimizerUI({
                 container: document.getElementById('app'),
                 optimizer: this.optimizer,
-                locale: 'fr' // ou 'en'
+                locale: 'fr' // or 'en'
             });
 
-            // Initialiser
+            // Initialize
             await this.ui.init({
                 geogebraXML: xmlContent
             });
 
-            console.log('✅ Application initialisée avec succès !');
+            console.log('✅ Application initialized successfully!');
         } catch (error) {
-            console.error('❌ Erreur lors de l\'initialisation:', error);
-            // Afficher l'erreur dans la page
+            console.error('❌ Error during initialization:', error);
+            // Display error on the page
             document.getElementById('app').innerHTML = `
                 <div style="padding: 20px; color: red;">
-                    <h2>Erreur de chargement</h2>
+                    <h2>Loading Error</h2>
                     <pre>${error.message}\n${error.stack}</pre>
                 </div>
             `;
@@ -43,7 +43,7 @@ class App {
     }
 }
 
-// Démarrer l'application au chargement de la page
+// Start the application when the page loads
 window.addEventListener('load', async () => {
     const app = new App();
     await app.init();

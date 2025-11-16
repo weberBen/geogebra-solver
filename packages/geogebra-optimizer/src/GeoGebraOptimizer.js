@@ -143,15 +143,15 @@ export class GeoGebraOptimizer extends EventBus {
         } = config;
 
         try {
-            // Créer les managers
+            // Create managers
             this.pyodideManager = new PyodideManager(pyodideOptions);
             this.geogebraManager = new GeoGebraManager(geogebraOptions);
 
-            // Forward des events
+            // Forward events
             this.forwardEvents(this.pyodideManager, ['pyodide:loading', 'pyodide:ready', 'error', 'log']);
             this.forwardEvents(this.geogebraManager, ['geogebra:loading', 'geogebra:ready', 'constraints:loaded', 'slider:changed', 'sliders:updated', 'error']);
 
-            // Charger PyOdide et GeoGebra en parallèle
+            // Load PyOdide and GeoGebra in parallel
             await Promise.all([
                 this.pyodideManager.init().then(() => {
                     this.state.pyodideReady = true;
@@ -161,7 +161,7 @@ export class GeoGebraOptimizer extends EventBus {
                 })
             ]);
 
-            // Charger les modules Python (utiliser les défauts si non fournis)
+            // Load Python modules (use defaults if not provided)
             let finalPythonFiles = pythonFiles;
             if (!pythonFiles || (!pythonFiles.optimizer && !pythonFiles.fitness)) {
                 this.emit('log', {
@@ -191,7 +191,7 @@ export class GeoGebraOptimizer extends EventBus {
     }
 
     /**
-     * Forward les événements d'un manager
+     * Forward events from a manager
      */
     forwardEvents(manager, events) {
         events.forEach(event => {
@@ -255,7 +255,7 @@ export class GeoGebraOptimizer extends EventBus {
         this.emit('optimization:start', { selectedSliders, objectiveParams, solverParams });
 
         try {
-            // Préparer les bornes et valeurs initiales
+            // Prepare bounds and initial values
             const bounds = { min: [], max: [], initial: [] };
             const sliderObjects = [];
 
@@ -271,7 +271,7 @@ export class GeoGebraOptimizer extends EventBus {
 
             const { lambda } = objectiveParams;
 
-            // Initialiser l'optimiseur CMA-ES
+            // Initialize CMA-ES optimizer
             const initCode = `
 es = initialize_optimizer(
     ${JSON.stringify(bounds.initial)},
@@ -286,7 +286,7 @@ es = initialize_optimizer(
 `;
             await this.pyodideManager.runPython(initCode);
             this.emit('log', {
-                message: 'Optimiseur initialisé avec succès',
+                message: 'Optimizer initialized successfully',
                 level: 'info',
                 timestamp: new Date()
             });
@@ -299,20 +299,20 @@ es = initialize_optimizer(
 
             const initialValues = [...bounds.initial];
 
-            // Boucle d'optimisation
+            // Optimization loop
             while (!this.stopRequested && generation < solverParams.maxiter) {
-                // Demander une nouvelle population
+                // Ask for a new population
                 const solutionsJson = await this.pyodideManager.runPython(`ask_solutions(es)`);
                 const solutions = JSON.parse(solutionsJson);
 
-                // Évaluer chaque solution
+                // Evaluate each solution
                 const fitnesses = [];
                 for (const solution of solutions) {
-                    // Mettre à jour les sliders
+                    // Update sliders
                     this.updateSliders(solution, selectedSliders);
                     await new Promise(resolve => setTimeout(resolve, 50));
 
-                    // Calculer fitness
+                    // Calculate fitness
                     const result = this.calculateFitness(solution, initialValues, lambda, sliderObjects);
                     fitnesses.push(result.fitness);
                     totalEvaluations++;
@@ -331,7 +331,7 @@ es = initialize_optimizer(
                         });
                     }
 
-                    // Mettre à jour si meilleure solution
+                    // Update if better solution
                     if (result.fitness < bestFitness) {
                         bestFitness = result.fitness;
                         bestDistance = result.distance;
@@ -361,14 +361,14 @@ es = initialize_optimizer(
 
                 if (this.stopRequested) break;
 
-                // Retourner les résultats à CMA-ES
+                // Return results to CMA-ES
                 await this.pyodideManager.runPython(
                     `tell_results(es, ${JSON.stringify(solutions)}, ${JSON.stringify(fitnesses)})`
                 );
 
                 generation++;
 
-                // Émettre progression
+                // Emit progress
                 const currentResult = this.calculateFitness(solutions[0], initialValues, lambda, sliderObjects);
                 this.emit('optimization:progress', {
                     generation,
@@ -433,7 +433,7 @@ es = initialize_optimizer(
     }
 
     /**
-     * Met à jour les sliders avec de nouvelles valeurs
+     * Update sliders with new values
      */
     updateSliders(values, selectedSliders) {
         const updates = {};
@@ -444,7 +444,7 @@ es = initialize_optimizer(
     }
 
     /**
-     * Calcule la fitness (distance + régularisation)
+     * Calculate fitness (distance + regularization)
      * Note: Hidden sliders are excluded from L2 penalty but still used as optimization variables
      */
     calculateFitness(currentValues, initialValues, lambda, sliderObjects = []) {
@@ -454,7 +454,7 @@ es = initialize_optimizer(
             return { fitness: distance, distance, penalty: 0 };
         }
 
-        // Calculer la pénalité L2 seulement sur les sliders NON-cachés
+        // Calculate L2 penalty only on NON-hidden sliders
         let penalty = 0;
         for (let i = 0; i < currentValues.length; i++) {
             // Skip hidden sliders in L2 penalty calculation
@@ -472,7 +472,7 @@ es = initialize_optimizer(
     }
 
     /**
-     * Calcule les deltas pour chaque slider
+     * Calculate deltas for each slider
      */
     calculateDeltas(currentValues, initialValues, selectedSliders) {
         let totalDelta = 0;
@@ -508,11 +508,11 @@ es = initialize_optimizer(
     }
 
     /**
-     * Calcule les deltas entre les valeurs actuelles et initiales des sliders
-     * @param {number[]} currentValues - Valeurs actuelles
-     * @param {number[]} initialValues - Valeurs initiales
-     * @param {string[]} selectedSliders - Noms des sliders sélectionnés
-     * @returns {Object} Objet avec les deltas { sliderName: delta, ... }
+     * Calculate deltas between current and initial slider values
+     * @param {number[]} currentValues - Current values
+     * @param {number[]} initialValues - Initial values
+     * @param {string[]} selectedSliders - Names of selected sliders
+     * @returns {Object} Object with deltas { sliderName: delta, ... }
      */
     calculateCurrentDeltas(currentValues, initialValues, selectedSliders) {
         const deltas = {};
@@ -531,14 +531,14 @@ es = initialize_optimizer(
     }
 
     /**
-     * Arrête l'optimisation
+     * Stop optimization
      */
     stop() {
         this.stopRequested = true;
     }
 
     /**
-     * Réinitialise l'optimiseur
+     * Reset the optimizer
      */
     reset() {
         this.stop();
@@ -625,7 +625,7 @@ es = initialize_optimizer(
     }
 
     /**
-     * Nettoie les ressources
+     * Clean up resources
      */
     destroy() {
         this.stop();

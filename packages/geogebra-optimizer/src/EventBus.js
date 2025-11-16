@@ -1,6 +1,6 @@
 /**
  * EventBus - Simple EventEmitter implementation
- * Permet aux composants de communiquer via des événements
+ * Allows components to communicate via events
  */
 export class EventBus {
     constructor() {
@@ -8,10 +8,10 @@ export class EventBus {
     }
 
     /**
-     * Enregistre un listener pour un événement
-     * @param {string} event - Nom de l'événement
-     * @param {Function} callback - Fonction à appeler
-     * @returns {Function} Fonction pour se désinscrire
+     * Register a listener for an event
+     * @param {string} event - Event name
+     * @param {Function} callback - Function to call
+     * @returns {Function} Function to unsubscribe
      */
     on(event, callback) {
         if (!this.events.has(event)) {
@@ -20,15 +20,15 @@ export class EventBus {
 
         this.events.get(event).push(callback);
 
-        // Retourner une fonction de désinscription
+        // Return unsubscribe function
         return () => this.off(event, callback);
     }
 
     /**
-     * Enregistre un listener qui ne sera appelé qu'une seule fois
-     * @param {string} event - Nom de l'événement
-     * @param {Function} callback - Fonction à appeler
-     * @returns {Function} Fonction pour se désinscrire
+     * Register a listener that will only be called once
+     * @param {string} event - Event name
+     * @param {Function} callback - Function to call
+     * @returns {Function} Function to unsubscribe
      */
     once(event, callback) {
         const onceWrapper = (...args) => {
@@ -40,9 +40,9 @@ export class EventBus {
     }
 
     /**
-     * Désinscrit un listener
-     * @param {string} event - Nom de l'événement
-     * @param {Function} callback - Fonction à retirer
+     * Unsubscribe a listener
+     * @param {string} event - Event name
+     * @param {Function} callback - Function to remove
      */
     off(event, callback) {
         if (!this.events.has(event)) return;
@@ -54,16 +54,16 @@ export class EventBus {
             callbacks.splice(index, 1);
         }
 
-        // Nettoyer si plus de listeners
+        // Clean up if no more listeners
         if (callbacks.length === 0) {
             this.events.delete(event);
         }
     }
 
     /**
-     * Émet un événement
-     * @param {string} event - Nom de l'événement
-     * @param {*} data - Données à passer aux listeners
+     * Emit an event
+     * @param {string} event - Event name
+     * @param {*} data - Data to pass to listeners
      */
     emit(event, data) {
         if (!this.events.has(event)) return;
@@ -79,7 +79,7 @@ export class EventBus {
     }
 
     /**
-     * Supprime tous les listeners
+     * Remove all listeners
      */
     removeAllListeners(event) {
         if (event) {
@@ -90,7 +90,7 @@ export class EventBus {
     }
 
     /**
-     * Retourne le nombre de listeners pour un événement
+     * Return the number of listeners for an event
      */
     listenerCount(event) {
         return this.events.has(event) ? this.events.get(event).length : 0;
