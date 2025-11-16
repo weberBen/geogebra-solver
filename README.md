@@ -211,7 +211,7 @@ await ui.init({ geogebraXML: xmlContent });
 
 ## References
 
-- [GeoGebra API Documentation](https://wiki.geogebra.org/en/Reference:JavaScript)
+- [GeoGebra API Documentation](https://geogebra.github.io/docs/reference/en/GeoGebra_Apps_API/)
 - [PyOdide Documentation](https://pyodide.org/en/stable/)
 - [CMA-ES Python Library](https://github.com/CMA-ES/pycma)
 - [CMA-ES Algorithm](https://en.wikipedia.org/wiki/CMA-ES)
