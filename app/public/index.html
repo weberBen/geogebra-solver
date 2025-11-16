@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoGebra Optimizer App</title>
+
+    <!-- Pyodide CDN - Requis par geogebra-optimizer -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+
+    <!-- GeoGebra API - Requis par geogebra-optimizer -->
+    <script src="https://www.geogebra.org/apps/deployggb.js"></script>
+
+    <!-- Styles du package geogebra-optimizer-ui -->
+    <link rel="stylesheet" href="/packages/geogebra-optimizer-ui/styles/default.css">
+
+    <!-- Import maps pour importer les packages proprement -->
+    <script type="importmap">
+    {
+        "imports": {
+            "geogebra-optimizer": "/packages/geogebra-optimizer/index.js",
+            "geogebra-optimizer-ui": "/packages/geogebra-optimizer-ui/index.js"
+        }
+    }
+    </script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #app {
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <!-- Conteneur pour l'UI -->
+    <div id="app"></div>
+
+    <!-- Script principal de l'app -->
+    <script type="module" src="/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{
+  "source": {
+    "include": ["src", "index.js"],
+    "includePattern": ".+\\.js(doc|x)?$",
+    "excludePattern": "(node_modules/|docs)"
+  },
+  "opts": {
+    "destination": "./docs/api",
+    "recurse": true,
+    "readme": "./README.md",
+    "template": "node_modules/clean-jsdoc-theme",
+    "theme_opts": {
+      "default_theme": "dark",
+      "homepageTitle": "GeoGebra solver",
+      "title": "GeoGebra solver API Documentation",
+      "menu": [
+        {
+          "title": "GitHub",
+          "link": "https://github.com/yourusername/geogebra-optimizer",
+          "target": "_blank"
+        },
+        {
+          "title": "NPM",
+          "link": "https://www.npmjs.com/package/geogebra-optimizer",
+          "target": "_blank"
+        }
+      ],
+      "meta": [
+        {
+          "name": "description",
+          "content": "JavaScript library for optimizing GeoGebra constructions using CMA-ES algorithm via PyOdide"
+        },
+        {
+          "name": "keywords",
+          "content": "geogebra, optimization, cma-es, pyodide, mathematics"
+        }
+      ]
+    }
+  },
+  "plugins": ["plugins/markdown"],
+  "templates": {
+    "cleverLinks": false,
+    "monospaceLinks": false,
+    "default": {
+      "outputSourceFiles": true
+    }
+  }
+}

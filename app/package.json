@@ -1,0 +1,22 @@
+{
+  "name": "geogebra-app",
+  "version": "1.0.0",
+  "description": "Application coquille pour geogebra-optimizer-ui",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "geogebra-optimizer": "^1.0.0",
+    "geogebra-optimizer-ui": "^1.0.0"
+  },
+  "keywords": [
+    "geogebra",
+    "optimizer",
+    "app"
+  ],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,43 @@
+{
+  "name": "geogebra-optimizer-ui",
+  "version": "1.0.0",
+  "description": "UI framework with Web Components for geogebra-optimizer",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./BaseModule": "./src/BaseModule.js",
+    "./LayoutManager": "./src/LayoutManager.js",
+    "./GeoGebraOptimizerUI": "./src/GeoGebraOptimizerUI.js",
+    "./modules/*": "./src/modules/*.js",
+    "./locales/*": "./locales/*.json"
+  },
+  "scripts": {
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "keywords": [
+    "geogebra",
+    "optimization",
+    "web-components",
+    "ui",
+    "custom-elements"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "geogebra-optimizer": "^1.0.0"
+  },
+  "devDependencies": {
+    "@storybook/web-components": "^7.6.0",
+    "@storybook/web-components-vite": "^7.6.0",
+    "@storybook/addon-essentials": "^7.6.0",
+    "@storybook/addon-links": "^7.6.0",
+    "storybook": "^7.6.0",
+    "vite": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  }
+}

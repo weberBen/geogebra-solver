@@ -1,0 +1,119 @@
+{
+  "geogebraFrame": {
+    "title": "Visualiseur GeoGebra",
+    "loading": "Chargement de GeoGebra..."
+  },
+  "sliderPanel": {
+    "title": "Sliders",
+    "selectAll": "Tout sélectionner",
+    "deselectAll": "Tout désélectionner",
+    "name": "Nom",
+    "value": "Valeur",
+    "delta": "Δ",
+    "bounds": "Bornes",
+    "noSliders": "Aucun slider disponible"
+  },
+  "controlButtons": {
+    "start": "Démarrer l'optimisation",
+    "stop": "Arrêter"
+  },
+  "solverParams": {
+    "title": "Paramètres du Solver",
+    "maxiter": "Itérations Max",
+    "popsize": "Taille Population",
+    "sigma": "Pas (σ)",
+    "tolfun": "Tolérance"
+  },
+  "objectiveParams": {
+    "title": "Paramètres de l'Objectif",
+    "lambda": "Régularisation (λ)",
+    "lambdaDescription": "Contrôle l'équilibre entre minimisation de distance et changements des sliders"
+  },
+  "metricsPanel": {
+    "title": "Métriques",
+    "bestDistance": "Meilleure Distance",
+    "currentDistance": "Distance Actuelle",
+    "bestFitness": "Meilleur Fitness",
+    "regularizationPenalty": "Pénalité Régularisation",
+    "totalDelta": "Δ Total",
+    "generation": "Génération",
+    "evaluations": "Évaluations"
+  },
+  "logsPanel": {
+    "title": "Logs",
+    "clear": "Effacer",
+    "info": "Info",
+    "warning": "Attention",
+    "error": "Erreur",
+    "best": "Meilleure Solution",
+    "noLogs": "Pas encore de logs"
+  },
+  "snapshotHistory": {
+    "title": "Historique des Instantanés",
+    "toggle": "Basculer",
+    "clearAll": "Tout Effacer",
+    "restore": "Restaurer",
+    "columnTime": "Heure",
+    "columnType": "Type",
+    "columnSliders": "Valeurs des Sliders",
+    "columnMetrics": "Métriques",
+    "columnActions": "Actions",
+    "typeBefore": "Avant Optimisation",
+    "typeAfterComplete": "Terminé",
+    "typeAfterStopped": "Arrêté",
+    "noSnapshots": "Aucun instantané",
+    "confirmClear": "Effacer tous les instantanés ?",
+    "restoredSuccess": "Instantané restauré avec succès"
+  },
+  "status": {
+    "loading": "Chargement...",
+    "ready": "Prêt",
+    "optimizing": "Optimisation en cours...",
+    "stopped": "Arrêté",
+    "error": "Erreur",
+    "complete": "Terminé"
+  },
+  "progressBar": {
+    "optimization": "Progression de l'Optimisation",
+    "evaluations": "évaluations"
+  },
+  "exportPanel": {
+    "title": "Export",
+    "directExports": "Exports Directs",
+    "exportSVG": "Exporter SVG",
+    "exportPNG": "Exporter PNG",
+    "exportPDF": "Exporter PDF",
+    "exportXML": "Exporter XML",
+    "pngScale": "Échelle PNG",
+    "pngTransparent": "Fond Transparent",
+    "hideDecorative": "Masquer éléments décoratifs (texte, points, sliders, etc.)",
+    "webhookExport": "Traitement Serveur",
+    "webhookUrl": "URL Webhook",
+    "sourceFormat": "Format Source",
+    "serverParams": "Paramètres Serveur",
+    "exportViaWebhook": "Exporter via Serveur",
+    "webhookUrlRequired": "Veuillez configurer l'URL webhook d'abord"
+  },
+  "webhookDefaults": {
+    "dxf": {
+      "description": "Export DXF via Serveur",
+      "warning": "L'export DXF convertit les courbes de Bézier en polylignes. Les courbes complexes deviennent de nombreux petits segments. Ajustez la tolérance selon vos besoins.",
+      "outputFormat": {
+        "label": "Format de sortie",
+        "description": "Format du fichier généré par le serveur"
+      },
+      "tolerance": {
+        "label": "Tolérance",
+        "description": "Précision de conversion des courbes (ex: 0.01mm)"
+      },
+      "optimize": {
+        "label": "Optimiser les Chemins",
+        "description": "Fusionner et simplifier les chemins vectoriels"
+      },
+      "units": {
+        "label": "Unités",
+        "description": "Unités de mesure pour le fichier de sortie"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "geogebra-optimizer-monorepo",
+  "version": "1.0.0",
+  "description": "Monorepo pour GeoGebra Optimizer - packages et app",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "app"
+  ],
+  "scripts": {
+    "start": "cd app && npm start",
+    "start:old": "node server.js"
+  },
+  "keywords": ["geogebra", "optimizer", "monorepo"],
+  "author": "",
+  "license": "MIT"
+}
