@@ -447,6 +447,6 @@ await opt.optimize({
 
 See [`/examples/web-components-ui/`](../../examples/web-components-ui/) for a complete working example with UI.
 
-## License
+# Disclaimer
 
-MIT
+Used with Claude Code 2.0.42

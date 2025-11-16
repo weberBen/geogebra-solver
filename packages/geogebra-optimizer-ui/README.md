@@ -591,6 +591,6 @@ npm run build-storybook
 
 (Web Components Custom Elements V1 required)
 
-## License
+# Disclaimer
 
-MIT
+Used with Claude Code 2.0.42

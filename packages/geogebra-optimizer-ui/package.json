@@ -24,7 +24,7 @@
     "custom-elements"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "GPLv3",
   "peerDependencies": {
     "geogebra-optimizer": "^1.0.0"
   },

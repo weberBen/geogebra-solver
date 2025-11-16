@@ -23,7 +23,7 @@
     "mathematics"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "GPLv3",
   "peerDependencies": {},
   "devDependencies": {
     "jsdoc": "^4.0.2",

@@ -395,10 +395,6 @@ Example production command:
 gunicorn server:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 ```
 
-## License
-
-This is example code for reference. Modify and use as needed.
-
 ## Resources
 
 - [vpype Documentation](https://vpype.readthedocs.io/)
