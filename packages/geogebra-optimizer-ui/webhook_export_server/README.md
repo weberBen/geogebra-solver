@@ -70,7 +70,7 @@ Source: GeoGebra community discussions and documentation.
 ### 1. Create Virtual Environment
 
 ```bash
-cd examples/export-server
+cd packages/geogebra-optimizer-ui/webhook_export_server
 python3 -m venv venv
 ```
 

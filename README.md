@@ -132,8 +132,10 @@ The application will be accessible at **http://localhost:8000/**
 
 ### 📤 Export
 - **Direct exports**: SVG, PNG (with scale), PDF, XML
-- **Server export**: DXF via webhook (Bézier → polylines conversion)
+- **Webhook export**: Configure external server URL for custom processing (e.g., DXF conversion)
 - **Options**: Transparent background, hide decorative elements
+
+⚠️ **Note:** Vector exports have inherent precision limitations. See the [UI package documentation](./packages/geogebra-optimizer-ui/README.md#export-quality-warnings) for detailed warnings about DXF conversion, curve precision, and the included example server.
 
 ## GeoGebra Conventions
 
