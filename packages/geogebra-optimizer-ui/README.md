@@ -334,50 +334,37 @@ const ui = new GeoGebraOptimizerUI({
 
 ### Export Quality Warnings
 
-⚠️ **IMPORTANT**: Be aware of the following limitations when using webhook exports, especially for DXF conversion:
-
-#### DXF Export Quality
-
-**Bézier to Polyline Conversion:**
-- DXF format does not support Bézier curves natively
-- All curves are converted to polylines (many small line segments)
-- This can result in:
-  - **Loss of smooth curves** → Quality degradation on complex shapes
-  - **Very large file sizes** for detailed drawings
-  - **Potential machinery wear** (laser cutters, CNC routers) due to high segment count
-  - **Slower machine operation** from processing thousands of micro-segments
-
-**Recommendation:** Adjust the `tolerance` parameter to balance quality vs. file size. Lower tolerance = more segments = smoother curves but larger files and more machine wear.
-
 #### GeoGebra Vector Export Precision Limitations
 
 **SVG/PDF/EPS Export Issues:**
 - GeoGebra's vector export has inherent precision limitations
-- Curve interpolation method is not officially documented by GeoGebra
 - For complex objects, GeoGebra may use polyline approximations instead of true Bézier curves
 - Control points and coordinates may be rounded during export
 
-**Recommendation:** For highest precision requirements, export PNG at high DPI (300-600) instead of vector formats, then use image-to-vector conversion if needed.
+**Bézier to Polyline Conversion:**
+- All curves are converted to polylines (many small line segments)
+- For machine operation (like CNC, or printer), this can result in:
+  - **Loss of smooth curves** → Quality degradation on complex shapes
+  - **Very large file sizes**
+  - **Potential machinery wear** (laser cutters, CNC routers) due to high segment count
+  - **Slower machine operation** from processing thousands of micro-segments
 
-#### vpype Conversion (Example Server)
+However, in reality such case might not appears since the shape on geogebra cannot exceed a specific complexity in reasonable treatement time.
 
-The included example server uses `vpype` for SVG to DXF conversion:
-- Converts all curves to polylines for DXF compatibility
-- The `tolerance` parameter controls precision vs. file size tradeoff
-- Lower tolerance = more accurate curves but exponentially more segments
+#### Webhook
 
-### Default Configuration
+The export format can be extended via a webhook to which the application send the native export (SVG/PNG/XML/...) and the server return a file in a specific format. An example of such a server is avalaible under `/webhook_export_server`. It uses `vpype` for SVG to DXF conversion with path optimization to merge close ones. However, that does not solve the precision limitation of GeoGebra export which is used underneath. 
 
-If `webhookConfig` is not provided, the UI falls back to a default DXF export configuration suitable for testing.
+If `webhookConfig` is not provided, the UI falls back to a default DXF export configuration suitable for testing. But the webhook config is 100% customizable with your own fields.
 
-### Parameter Types
+##### Parameter Types
 
 The UI automatically determines input types based on parameter values:
 - **Boolean** → Checkbox
 - **Number** → Number input
 - **String** → Text input
 
-### Custom Server Integration
+##### Custom Server Integration
 
 The webhook export sends a POST request to the configured URL with this structure:
 
@@ -385,33 +372,16 @@ The webhook export sends a POST request to the configured URL with this structur
 {
   format: 'svg',             // Selected source format
   data: '...',               // Exported data (SVG/PNG/XML content)
-  outputFormat: 'dxf',       // Target output format (extracted from params)
+  outputFormat: 'your format identifier',   // Target output format (extracted from params and used as file extension)
   options: {                 // Processing options
-    tolerance: '0.01mm',
-    optimize: true,
-    units: 'mm'
+    // your options
   }
 }
 ```
 
-**Note:** The `outputFormat` parameter is automatically extracted from your `params` configuration and placed at the root level. All other parameters are sent in the `options` object.
-
 Your server should process the data and return a file blob.
 
-### Example DXF Export Server
-
-This package includes a **reference implementation** of a webhook export server that converts GeoGebra exports to DXF format.
-
-**Location:** [`./webhook_export_server/`](./webhook_export_server/)
-
-**Features:**
-- SVG → DXF conversion using `vpype` and `ezdxf`
-- Path optimization (line merge, simplification)
-- Configurable tolerance, units, and optimization levels
-- CORS enabled for frontend integration
-- Complete with installation guide and test client
-
-**Quick Start:**
+##### Quick Start:
 
 ```bash
 cd packages/geogebra-optimizer-ui/webhook_export_server
@@ -423,15 +393,7 @@ python server.py
 
 The server runs on `http://localhost:5000` by default.
 
-**⚠️ WARNING:** This is a **reference implementation** for development and testing. For production use, add:
-- Authentication and authorization
-- Rate limiting
-- Input validation and sanitization
-- Proper error handling and logging
-- HTTPS/TLS encryption
-- Resource limits and timeout handling
-
-See the [server documentation](./webhook_export_server/README.md) for complete installation instructions, API reference, and customization examples.
+**⚠️ WARNING:** This is a **reference implementation** for development and testing only. See the [server documentation](./webhook_export_server/README.md) for complete installation instructions, API reference, and customization examples.
 
 ## Module-Specific Configuration
 
@@ -477,75 +439,6 @@ solverParamsProps: {
     tolfun: 0.000001    // Step for tolfun input
   }
 }
-```
-
-### Export Panel Props
-
-Configure export options via `exportPanelProps`:
-
-```javascript
-exportPanelProps: {
-  pngScaleStep: 0.5,        // Step for PNG scale input (default: 0.5)
-  webhookParamStep: 0.001,  // Step for webhook params (default: 0.001)
-  webhookConfig: {          // Webhook export configuration
-    allowedInputFormats: ['svg', 'png', 'xml'],
-    params: { /* ... */ },
-    paramLabels: { /* ... */ },
-    description: 'Export Description',
-    info: 'Info message',
-    warning: 'Warning message'
-  }
-}
-```
-
-## Backward Compatibility
-
-For backward compatibility, the old `defaultParams` and `webhookConfig` constructor parameters are still supported but **deprecated**. They will be automatically migrated to the new module-specific props:
-
-### Migration Example
-
-**Old (deprecated):**
-```javascript
-const ui = new GeoGebraOptimizerUI({
-  container: document.getElementById('app'),
-  optimizer,
-  defaultParams: {
-    lambda: 0.01,
-    maxiter: 100,
-    popsize: 10,
-    sigma: 0.5,
-    tolfun: 0.000001
-  },
-  webhookConfig: {
-    allowedInputFormats: ['svg'],
-    params: { outputFormat: 'dxf' }
-  }
-});
-```
-
-**New (recommended):**
-```javascript
-const ui = new GeoGebraOptimizerUI({
-  container: document.getElementById('app'),
-  optimizer,
-  objectiveParamsProps: {
-    defaultLambda: 0.01
-  },
-  solverParamsProps: {
-    defaults: {
-      maxiter: 100,
-      popsize: 10,
-      sigma: 0.5,
-      tolfun: 0.000001
-    }
-  },
-  exportPanelProps: {
-    webhookConfig: {
-      allowedInputFormats: ['svg'],
-      params: { outputFormat: 'dxf' }
-    }
-  }
-});
 ```
 
 ## API Reference

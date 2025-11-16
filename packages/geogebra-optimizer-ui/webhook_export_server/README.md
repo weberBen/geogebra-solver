@@ -400,3 +400,7 @@ gunicorn server:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 - [vpype Documentation](https://vpype.readthedocs.io/)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [GeoGebra Apps API](https://wiki.geogebra.org/en/Reference:GeoGebra_Apps_API)
+
+# Disclaimer
+
+Used with Claude Code 2.0.42

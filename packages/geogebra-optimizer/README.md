@@ -352,33 +352,21 @@ See [`examples/export-server/`](../../examples/export-server/) for a reference F
 
 ### ⚠️ Export Limitations & Warnings
 
-#### GeoGebra Vector Export Precision
+**SVG/PDF/EPS Export Issues:**
+- GeoGebra's vector export has inherent precision limitations
+- For complex objects, GeoGebra may use polyline approximations instead of true Bézier curves
+- Control points and coordinates may be rounded during export
 
-GeoGebra has inherent limitations in vector exports (SVG, PDF, EPS):
+**Bézier to Polyline Conversion:**
+- All curves are converted to polylines (many small line segments)
+- For machine operation (like CNC, or printer), this can result in:
+  - **Loss of smooth curves** → Quality degradation on complex shapes
+  - **Very large file sizes**
+  - **Potential machinery wear** (laser cutters, CNC routers) due to high segment count
+  - **Slower machine operation** from processing thousands of micro-segments
 
-- **Bézier curve control points are rounded to integers**
-- **Only 5 significant digits** are written (insufficient for full single-precision)
-- **Does NOT affect PNG exports**
+However, in reality such case might not appears since the shape on geogebra cannot exceed a specific complexity in reasonable treatement time.
 
-Source: GeoGebra community discussions and official documentation.
-
-**Recommendation**: For highest precision requirements, use PNG export with high DPI (300-600) instead of vector formats.
-
-#### DXF Export via vpype
-
-When converting SVG→DXF using vpype (server-side):
-
-- **Bézier curves are converted to polylines** (line segments)
-- Complex curves become **many small segments**
-- This can cause:
-  - **Loss of precision** on smooth curves
-  - **Machine wear** (laser cutter/CNC) due to micro-segments
-  - **Large DXF files** for complex drawings
-
-**Adjust settings** based on your use case:
-- High-precision cutting: Lower tolerance (`0.001mm`)
-- Fast prototyping: Higher tolerance (`0.1mm`)
-- Complex curves: Enable `optimize: true` to reduce segments
 
 ### Export Events
 
