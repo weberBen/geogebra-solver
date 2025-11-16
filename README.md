@@ -218,6 +218,6 @@ await ui.init({ geogebraXML: xmlContent });
 
 MIT
 
-## Author
+## Disclaimer
 
-Created with Claude Code
+Used with Claude Code 2.0.42
