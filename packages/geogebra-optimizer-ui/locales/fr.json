@@ -31,11 +31,10 @@
   },
   "metricsPanel": {
     "title": "Métriques",
-    "bestDistance": "Meilleure Distance",
-    "currentDistance": "Distance Actuelle",
-    "bestFitness": "Meilleur Fitness",
-    "regularizationPenalty": "Pénalité Régularisation",
-    "totalDelta": "Δ Total",
+    "bestObjective": "Meilleur Objectif",
+    "currentObjective": "Objectif Actuel",
+    "bestConstraints": "Meilleures Contraintes",
+    "currentConstraints": "Contraintes Actuelles",
     "generation": "Génération",
     "evaluations": "Évaluations"
   },

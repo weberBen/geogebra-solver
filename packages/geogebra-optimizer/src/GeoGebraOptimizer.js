@@ -16,10 +16,18 @@ import { ProgressTracker } from './ProgressTracker.js';
  */
 
 /**
+ * @typedef {Object} Constraint
+ * @property {string} expr - GeoGebra expression (e.g., "Distance(A',A)", "angle(ABC)")
+ * @property {string} op - Operator: "=", "<", ">", "<=", ">="
+ * @property {number} value - Target value for the constraint
+ * @property {number} [tolerance] - Tolerance for the constraint (uses default if not provided)
+ */
+
+/**
  * @typedef {Object} OptimizeOptions
  * @property {string[]} selectedSliders - Names of sliders to optimize
- * @property {Object} [objectiveParams] - Objective function parameters
- * @property {number} [objectiveParams.lambda=0.01] - Regularization lambda
+ * @property {Constraint[]} [constraints] - List of constraints (defaults to Distance(A',A)=0)
+ * @property {number} [defaultTolerance=1e-4] - Default tolerance for constraints without explicit tolerance
  * @property {Object} [solverParams] - CMA-ES solver parameters
  * @property {number} [solverParams.maxiter=100] - Maximum iterations
  * @property {number} [solverParams.popsize=10] - Population size
@@ -218,9 +226,10 @@ export class GeoGebraOptimizer extends EventBus {
      * @fires GeoGebraOptimizer#log - For informational messages
      *
      * @example
+     * // Constrained optimization with default constraint (Distance(A',A) = 0)
      * await optimizer.optimize({
      *   selectedSliders: ['AB', 'BC'],
-     *   objectiveParams: { lambda: 0.01 },
+     *   defaultTolerance: 1e-4,
      *   solverParams: {
      *     maxiter: 100,
      *     popsize: 10,
@@ -228,11 +237,27 @@ export class GeoGebraOptimizer extends EventBus {
      *     tolfun: 1e-6
      *   }
      * });
+     *
+     * @example
+     * // Constrained optimization with custom constraints
+     * await optimizer.optimize({
+     *   selectedSliders: ['AB', 'BC'],
+     *   constraints: [
+     *     { expr: "Distance(A',A)", op: "=", value: 0, tolerance: 1e-4 },
+     *     { expr: "Distance(A,B)", op: ">", value: 10, tolerance: 0.5 }
+     *   ],
+     *   defaultTolerance: 1e-4,
+     *   solverParams: {
+     *     maxiter: 100,
+     *     popsize: 10
+     *   }
+     * });
      */
     async optimize(options) {
         const {
             selectedSliders,
-            objectiveParams = { lambda: 0.01 },
+            constraints = [{ expr: "Distance(A',A)", op: "=", value: 0 }],
+            defaultTolerance = 1e-4,
             solverParams = { maxiter: 100, popsize: 10, sigma: 0.5, tolfun: 1e-6, progressStep: 1 }
         } = options;
 
@@ -252,7 +277,7 @@ export class GeoGebraOptimizer extends EventBus {
         const maxEvaluations = solverParams.maxiter * solverParams.popsize;
         this.progressTracker = new ProgressTracker(maxEvaluations, solverParams.progressStep || 1);
 
-        this.emit('optimization:start', { selectedSliders, objectiveParams, solverParams });
+        this.emit('optimization:start', { selectedSliders, solverParams, constraints, defaultTolerance });
 
         try {
             // Prepare bounds and initial values
@@ -269,22 +294,21 @@ export class GeoGebraOptimizer extends EventBus {
                 }
             });
 
-            const { lambda } = objectiveParams;
-
-            // Initialize CMA-ES optimizer
+            // Initialize CMA-ES optimizer with ConstrainedFitnessAL
             const initCode = `
-es = initialize_optimizer(
-    ${JSON.stringify(bounds.initial)},
-    ${JSON.stringify(bounds.min)},
-    ${JSON.stringify(bounds.max)},
-    sigma=${solverParams.sigma},
-    maxiter=${solverParams.maxiter},
-    popsize=${solverParams.popsize},
-    tolfun=${solverParams.tolfun}
-)
-"initialized"
-`;
+            es, cfun = initialize_optimizer(
+                ${JSON.stringify(bounds.initial)},
+                ${JSON.stringify(bounds.min)},
+                ${JSON.stringify(bounds.max)},
+                sigma=${solverParams.sigma},
+                maxiter=${solverParams.maxiter},
+                popsize=${solverParams.popsize},
+                tolfun=${solverParams.tolfun}
+            )
+            "initialized"
+            `;
             await this.pyodideManager.runPython(initCode);
+
             this.emit('log', {
                 message: 'Optimizer initialized successfully',
                 level: 'info',
@@ -296,6 +320,10 @@ es = initialize_optimizer(
             let bestFitness = Infinity;
             let bestDistance = Infinity;
             let bestSolution = null;
+            let bestObjective = Infinity;
+            let bestConstraintsViolation = Infinity;
+            let bestFeasibleSolution = null;
+            let bestFeasibleDistance = Infinity;
 
             const initialValues = [...bounds.initial];
 
@@ -312,9 +340,23 @@ es = initialize_optimizer(
                     this.updateSliders(solution, selectedSliders);
                     await new Promise(resolve => setTimeout(resolve, 50));
 
-                    // Calculate fitness
-                    const result = this.calculateFitness(solution, initialValues, lambda, sliderObjects);
-                    fitnesses.push(result.fitness);
+                    // Calculate objective (L2 penalty) and constraints
+                    const result = this.calculateFitnessWithConstraints(
+                        solution,
+                        initialValues,
+                        sliderObjects,
+                        constraints,
+                        defaultTolerance
+                    );
+
+                    // Evaluate augmented Lagrangian fitness in Python
+                    const fitnessAL = await this.pyodideManager.runPython(
+                        `_current_objective = ${result.objective}; _current_constraints = ${JSON.stringify(result.alConstraints)}; cfun(${JSON.stringify(solution)})`
+                    );
+                    const fitness = parseFloat(fitnessAL);
+                    result.fitness = fitness;
+
+                    fitnesses.push(fitness);
                     totalEvaluations++;
 
                     // Update progress tracker and emit event if threshold crossed
@@ -331,28 +373,47 @@ es = initialize_optimizer(
                         });
                     }
 
+                    // Check if solution is feasible
+                    const isFeasible = await this.pyodideManager.runPython(`is_feasible(cfun)`);
+                    const feasible = isFeasible === 'True';
+
                     // Update if better solution
                     if (result.fitness < bestFitness) {
                         bestFitness = result.fitness;
                         bestDistance = result.distance;
                         bestSolution = [...solution];
+                        bestObjective = result.objective;
+                        bestConstraintsViolation = result.constraintViolation;
+                    }
+
+                    // Track best feasible solution separately
+                    if (feasible && result.distance < bestFeasibleDistance) {
+                        bestFeasibleDistance = result.distance;
+                        bestFeasibleSolution = [...solution];
 
                         // Calculer deltas
                         const deltas = this.calculateDeltas(solution, initialValues, selectedSliders);
 
                         const metrics = {
-                            bestDistance,
-                            bestFitness,
-                            regularizationPenalty: result.penalty,
+                            bestObjective: result.objective,          // L2 objective
+                            bestConstraintsViolation: result.constraintViolation,
+                            bestDistance: bestFeasibleDistance,       // Legacy
                             totalDelta: deltas.totalDelta,
                             generation,
-                            evaluations: totalEvaluations
+                            evaluations: totalEvaluations,
+                            feasible: true
                         };
 
                         this.emit('optimization:newBest', {
                             solution,
                             metrics,
                             deltas: deltas.sliderDeltas
+                        });
+
+                        this.emit('log', {
+                            message: `New best feasible solution: distance=${bestFeasibleDistance.toFixed(6)}, L2=${result.objective.toFixed(6)}`,
+                            level: 'info',
+                            timestamp: new Date()
                         });
                     }
 
@@ -361,21 +422,32 @@ es = initialize_optimizer(
 
                 if (this.stopRequested) break;
 
-                // Return results to CMA-ES
+                // Return results to CMA-ES and update AL coefficients
                 await this.pyodideManager.runPython(
-                    `tell_results(es, ${JSON.stringify(solutions)}, ${JSON.stringify(fitnesses)})`
+                    `tell_results(es, ${JSON.stringify(solutions)}, ${JSON.stringify(fitnesses)}, cfun)`
                 );
 
                 generation++;
 
                 // Emit progress
-                const currentResult = this.calculateFitness(solutions[0], initialValues, lambda, sliderObjects);
+                const currentResult = this.calculateFitnessWithConstraints(
+                    solutions[0],
+                    initialValues,
+                    sliderObjects,
+                    constraints,
+                    defaultTolerance
+                );
+
                 this.emit('optimization:progress', {
                     generation,
                     evaluations: totalEvaluations,
                     currentSolution: solutions[0],
                     metrics: {
-                        currentDistance: currentResult.distance,
+                        currentObjective: currentResult.objective,
+                        currentConstraintsViolation: currentResult.constraintViolation,
+                        bestObjective: bestObjective,
+                        bestConstraintsViolation: bestConstraintsViolation,
+                        currentDistance: currentResult.distance,  // Legacy
                         bestDistance,
                         bestFitness,
                         generation,
@@ -395,23 +467,41 @@ es = initialize_optimizer(
                 }
             }
 
-            // Appliquer la meilleure solution
-            if (bestSolution) {
-                this.updateSliders(bestSolution, selectedSliders);
-                const finalResult = this.calculateFitness(bestSolution, initialValues, lambda, sliderObjects);
-                const deltas = this.calculateDeltas(bestSolution, initialValues, selectedSliders);
+            // Appliquer la meilleure solution faisable (ou meilleure solution si aucune faisable)
+            const finalSolution = bestFeasibleSolution || bestSolution;
+            if (finalSolution) {
+                this.updateSliders(finalSolution, selectedSliders);
+                const finalResult = this.calculateFitnessWithConstraints(
+                    finalSolution,
+                    initialValues,
+                    sliderObjects,
+                    constraints,
+                    defaultTolerance
+                );
+                const deltas = this.calculateDeltas(finalSolution, initialValues, selectedSliders);
 
                 const finalMetrics = {
-                    bestDistance,
-                    bestFitness,
-                    regularizationPenalty: finalResult.penalty,
+                    bestObjective: finalResult.objective,
+                    bestConstraintsViolation: finalResult.constraintViolation,
+                    bestDistance: bestFeasibleSolution ? bestFeasibleDistance : bestDistance,  // Legacy
                     totalDelta: deltas.totalDelta,
                     generation,
-                    evaluations: totalEvaluations
+                    evaluations: totalEvaluations,
+                    feasible: bestFeasibleSolution !== null
                 };
 
+                const feasibilityMsg = bestFeasibleSolution
+                    ? `Feasible solution found (violation=${finalResult.constraintViolation.toFixed(6)})`
+                    : `No feasible solution (violation=${finalResult.constraintViolation.toFixed(6)})`;
+
+                this.emit('log', {
+                    message: feasibilityMsg,
+                    level: bestFeasibleSolution ? 'info' : 'warn',
+                    timestamp: new Date()
+                });
+
                 this.emit('optimization:complete', {
-                    bestSolution,
+                    bestSolution: finalSolution,
                     finalMetrics,
                     deltas: deltas.sliderDeltas
                 });
@@ -444,31 +534,125 @@ es = initialize_optimizer(
     }
 
     /**
-     * Calculate fitness (distance + regularization)
-     * Note: Hidden sliders are excluded from L2 penalty but still used as optimization variables
+     * Transform user constraints to ConstrainedFitnessAL format (g(x) ≤ 0)
+     *
+     * @param {Constraint[]} constraints - User-defined constraints
+     * @param {number[]} evaluatedValues - Evaluated constraint values
+     * @param {number} defaultTolerance - Default tolerance
+     * @returns {number[]} Array of constraint values for AL (≤ 0 is feasible)
      */
-    calculateFitness(currentValues, initialValues, lambda, sliderObjects = []) {
-        const distance = this.geogebraManager.calculateDistance('A', "A'");
+    transformConstraintsForAL(constraints, evaluatedValues, defaultTolerance) {
+        const alConstraints = [];
 
-        if (!currentValues || !initialValues) {
-            return { fitness: distance, distance, penalty: 0 };
+        for (let i = 0; i < constraints.length; i++) {
+            const constraint = constraints[i];
+            const g = evaluatedValues[i];  // Evaluated value
+            const tol = constraint.tolerance ?? defaultTolerance;
+
+            switch (constraint.op) {
+                case '=':
+                    // g = value → [-tol ≤ g-value ≤ tol]
+                    // Transformed: [g-value-tol ≤ 0, -g+value-tol ≤ 0]
+                    alConstraints.push(g - constraint.value - tol);
+                    alConstraints.push(-g + constraint.value - tol);
+                    break;
+
+                case '>':
+                    // g > value+tol → value+tol-g < 0
+                    alConstraints.push(constraint.value + tol - g);
+                    break;
+
+                case '>=':
+                    // g >= value-tol → value-tol-g ≤ 0
+                    alConstraints.push(constraint.value - tol - g);
+                    break;
+
+                case '<':
+                    // g < value-tol → g-value+tol < 0
+                    alConstraints.push(g - constraint.value + tol);
+                    break;
+
+                case '<=':
+                    // g <= value+tol → g-value-tol ≤ 0
+                    alConstraints.push(g - constraint.value - tol);
+                    break;
+
+                default:
+                    throw new Error(`Unknown operator: ${constraint.op}`);
+            }
         }
 
-        // Calculate L2 penalty only on NON-hidden sliders
-        let penalty = 0;
-        for (let i = 0; i < currentValues.length; i++) {
-            // Skip hidden sliders in L2 penalty calculation
-            if (sliderObjects[i] && sliderObjects[i].hidden) {
-                continue;
+        return alConstraints;
+    }
+
+    /**
+     * Evaluate constraints using GeoGebra API
+     * For now, uses faker for testing until GeoGebra parsing is implemented
+     *
+     * @param {Constraint[]} constraints - Constraints to evaluate
+     * @returns {number[]} Evaluated constraint values
+     */
+    evaluateConstraints(constraints) {
+        return constraints.map(constraint => {
+            // TODO: Parse and evaluate real GeoGebra expressions
+            // For now, fake evaluation based on expr
+            if (constraint.expr.includes("Distance(A',A)") || constraint.expr.includes("Distance(A,A')")) {
+                return this.geogebraManager.calculateDistance('A', "A'");
             }
 
-            const diff = currentValues[i] - initialValues[i];
-            penalty += diff * diff;
+            // Fake other constraints
+            return 0;
+        });
+    }
+
+    /**
+     * Calculate constraint violation metric for display
+     * @param {number[]} alConstraints - AL-transformed constraints
+     * @returns {number} Mean violation (0 if all satisfied)
+     */
+    calculateConstraintViolation(alConstraints) {
+        if (alConstraints.length === 0) return 0;
+
+        const violations = alConstraints.map(g => Math.max(0, g));
+        return violations.reduce((sum, v) => sum + v, 0) / violations.length;
+    }
+
+    /**
+     * Calculate fitness with generic constraints
+     * Objective: L2 penalty (without lambda)
+     * Constraints: User-defined constraints
+     * Note: Hidden sliders are excluded from L2 penalty but still used as optimization variables
+     */
+    calculateFitnessWithConstraints(currentValues, initialValues, sliderObjects, constraints, defaultTolerance) {
+        // Calculate L2 penalty only on NON-hidden sliders (objective)
+        let objective = 0;
+        if (currentValues && initialValues) {
+            for (let i = 0; i < currentValues.length; i++) {
+                // Skip hidden sliders in L2 penalty calculation
+                if (sliderObjects[i] && sliderObjects[i].hidden) {
+                    continue;
+                }
+
+                const diff = currentValues[i] - initialValues[i];
+                objective += diff * diff;
+            }
         }
 
-        const fitness = distance + lambda * penalty;
+        // Evaluate and transform constraints
+        const evaluatedConstraints = this.evaluateConstraints(constraints);
+        const alConstraints = this.transformConstraintsForAL(constraints, evaluatedConstraints, defaultTolerance);
+        const constraintViolation = this.calculateConstraintViolation(alConstraints);
 
-        return { fitness, distance, penalty };
+        // Legacy distance for backward compatibility (first constraint if it's distance)
+        const distance = evaluatedConstraints[0] || 0;
+
+        return {
+            objective,                      // L2 penalty
+            alConstraints,                  // Transformed for ConstrainedFitnessAL
+            constraintViolation,            // For display
+            evaluatedConstraints,           // Raw evaluated values
+            distance                        // Legacy
+        };
     }
 
     /**

@@ -58,7 +58,7 @@ const ui = new GeoGebraOptimizerUI({
       tolfun: 0.000001     // Step for tolfun input (default: 0.000001)
     }
   },
-
+mai
   // Configure export panel
   exportPanelProps: {
     pngScaleStep: 0.5,     // Step for PNG scale input (default: 0.5)

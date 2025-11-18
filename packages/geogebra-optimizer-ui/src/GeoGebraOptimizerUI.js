@@ -405,14 +405,7 @@ export class GeoGebraOptimizerUI {
             this.modules.sliders?.initSliders(sliders, this.optimizer.getGeoGebraAPI());
             this.modules.logs?.addEntry(`Detected ${sliders.length} sliders`, 'info');
 
-            // Update initial distance
-            const distance = this.optimizer.getGeoGebraAPI()?.calculateDistance?.();
-            if (distance !== undefined && !isNaN(distance)) {
-                this.modules.metrics?.updateMetrics({
-                    currentDistance: distance,
-                    bestDistance: distance
-                });
-            }
+            // Metrics will be updated on first evaluation
         });
 
         // Optimization start
@@ -442,7 +435,10 @@ export class GeoGebraOptimizerUI {
             this.modules.metrics?.updateMetrics({
                 generation,
                 evaluations,
-                currentDistance: metrics.currentDistance
+                currentObjective: metrics.currentObjective,
+                currentConstraintsViolation: metrics.currentConstraintsViolation,
+                bestObjective: metrics.bestObjective,
+                bestConstraintsViolation: metrics.bestConstraintsViolation
             });
         });
 
@@ -454,10 +450,15 @@ export class GeoGebraOptimizerUI {
 
         // New best solution
         this.optimizer.on('optimization:newBest', ({ solution, metrics, deltas }) => {
-            this.modules.metrics?.updateMetrics(metrics);
+            this.modules.metrics?.updateMetrics({
+                bestObjective: metrics.bestObjective,
+                bestConstraintsViolation: metrics.bestConstraintsViolation,
+                generation: metrics.generation,
+                evaluations: metrics.evaluations
+            });
             this.modules.sliders?.updateDeltas(deltas);
             this.modules.logs?.addEntry(
-                `New best: distance=${metrics.bestDistance.toFixed(6)}`,
+                `New best: objective=${metrics.bestObjective?.toFixed(6)}, constraints=${metrics.bestConstraintsViolation?.toFixed(6)}`,
                 'best'
             );
         });
@@ -470,7 +471,7 @@ export class GeoGebraOptimizerUI {
                 'success'
             );
             this.modules.logs?.addEntry(
-                `Optimization complete! Distance: ${finalMetrics.bestDistance.toFixed(6)}`,
+                `Optimization complete! Objective: ${finalMetrics.bestObjective?.toFixed(6)}, Constraints: ${finalMetrics.bestConstraintsViolation?.toFixed(6)}`,
                 'best'
             );
 

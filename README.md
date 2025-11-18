@@ -8,7 +8,7 @@ Interactive web application combining GeoGebra and CMA-ES optimization (Covarian
 
 ## TODO
 
-- [ ] Add additional constraints with ConstrainedFitnessAL
+- [] Implement ConstrainedFitnessAL with hard constraints (distance A-A' as constraint, L2 as objective)
 
 ## Project Architecture
 
@@ -112,11 +112,12 @@ The application will be accessible at **http://localhost:8000/**
 - Real-time manipulation of points and sliders
 - Live optimization visualization
 
-### 🧬 CMA-ES Optimization
-- **Evolutionary algorithm**: CMA-ES for global optimization
-- **Objective function**: Minimize distance between A' and A with L2 regularization
+### 🧬 CMA-ES Optimization with Hard Constraints
+- **Evolutionary algorithm**: CMA-ES with ConstrainedFitnessAL (Augmented Lagrangian)
+- **Objective function**: Minimize L2 penalty on slider changes
+- **Hard constraint**: Distance between A' and A must be ≤ epsilon (configurable tolerance)
 - **Flexible selection**: Choose which sliders to optimize
-- **Configurable parameters**: maxiter, popsize, sigma, tolfun, lambda
+- **Configurable parameters**: maxiter, popsize, sigma, tolfun, epsilon
 
 ### 📊 Real-time Metrics
 - Current distance and best distance
@@ -169,8 +170,8 @@ await optimizer.init({
 
 await optimizer.optimize({
   selectedSliders: ['AB', 'BC', 'CD'],
-  solverParams: { maxiter: 100, popsize: 10 },
-  objectiveParams: { lambda: 0.01 }
+  epsilon: 1e-4,  // Constraint tolerance for distance A-A'
+  solverParams: { maxiter: 100, popsize: 10 }
 });
 ```
 

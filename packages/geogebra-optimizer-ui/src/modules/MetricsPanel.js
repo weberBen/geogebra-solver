@@ -25,11 +25,10 @@ export class MetricsPanel extends BaseModule {
         super();
 
         this.state = {
-            bestDistance: null,
-            currentDistance: null,
-            bestFitness: null,
-            regularizationPenalty: null,
-            totalDelta: null,
+            currentObjective: null,
+            bestObjective: null,
+            currentConstraintsViolation: null,
+            bestConstraintsViolation: null,
             generation: 0,
             evaluations: 0
         };
@@ -39,16 +38,16 @@ export class MetricsPanel extends BaseModule {
      * Update metrics values.
      *
      * @param {Object} metrics - Metrics to update
-     * @param {number} [metrics.bestDistance] - Best distance found
-     * @param {number} [metrics.currentDistance] - Current distance
-     * @param {number} [metrics.bestFitness] - Best fitness value
-     * @param {number} [metrics.regularizationPenalty] - Regularization penalty
-     * @param {number} [metrics.totalDelta] - Total delta from initial
+     * @param {number} [metrics.currentObjective] - Current L2 objective value
+     * @param {number} [metrics.bestObjective] - Best L2 objective found
+     * @param {number} [metrics.currentConstraintsViolation] - Current constraints violation
+     * @param {number} [metrics.bestConstraintsViolation] - Best constraints violation
      * @param {number} [metrics.generation] - Current generation
      * @param {number} [metrics.evaluations] - Total evaluations
      * @example
      * metricsPanel.updateMetrics({
-     *   bestDistance: 0.0123,
+     *   currentObjective: 1.234,
+     *   bestConstraintsViolation: 0.0001,
      *   generation: 50,
      *   evaluations: 500
      * });
@@ -64,11 +63,10 @@ export class MetricsPanel extends BaseModule {
      */
     reset() {
         this.setState({
-            bestDistance: null,
-            currentDistance: null,
-            bestFitness: null,
-            regularizationPenalty: null,
-            totalDelta: null,
+            currentObjective: null,
+            bestObjective: null,
+            currentConstraintsViolation: null,
+            bestConstraintsViolation: null,
             generation: 0,
             evaluations: 0
         });
@@ -80,11 +78,10 @@ export class MetricsPanel extends BaseModule {
     render() {
         const t = this.t.bind(this);
         const {
-            bestDistance,
-            currentDistance,
-            bestFitness,
-            regularizationPenalty,
-            totalDelta,
+            currentObjective,
+            bestObjective,
+            currentConstraintsViolation,
+            bestConstraintsViolation,
             generation,
             evaluations
         } = this.state;
@@ -101,37 +98,37 @@ export class MetricsPanel extends BaseModule {
                     <h3 class="metrics-panel__title">${t('metricsPanel.title')}</h3>
                 </div>
                 <div class="metrics-panel__content">
+                    <div class="metrics-panel__groups">
+                        <div class="metrics-panel__group">
+                            <div class="metrics-panel__item">
+                                <div class="metrics-panel__label">${t('metricsPanel.bestObjective')}</div>
+                                <div class="metrics-panel__value metrics-panel__value--primary">
+                                    ${formatValue(bestObjective)}
+                                </div>
+                            </div>
+                            <div class="metrics-panel__item">
+                                <div class="metrics-panel__label">${t('metricsPanel.bestConstraints')}</div>
+                                <div class="metrics-panel__value metrics-panel__value--primary">
+                                    ${formatValue(bestConstraintsViolation)}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="metrics-panel__group">
+                            <div class="metrics-panel__item">
+                                <div class="metrics-panel__label">${t('metricsPanel.currentObjective')}</div>
+                                <div class="metrics-panel__value">
+                                    ${formatValue(currentObjective)}
+                                </div>
+                            </div>
+                            <div class="metrics-panel__item">
+                                <div class="metrics-panel__label">${t('metricsPanel.currentConstraints')}</div>
+                                <div class="metrics-panel__value">
+                                    ${formatValue(currentConstraintsViolation)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="metrics-panel__grid">
-                        <div class="metrics-panel__item">
-                            <div class="metrics-panel__label">${t('metricsPanel.bestDistance')}</div>
-                            <div class="metrics-panel__value metrics-panel__value--primary">
-                                ${formatValue(bestDistance)}
-                            </div>
-                        </div>
-                        <div class="metrics-panel__item">
-                            <div class="metrics-panel__label">${t('metricsPanel.currentDistance')}</div>
-                            <div class="metrics-panel__value">
-                                ${formatValue(currentDistance)}
-                            </div>
-                        </div>
-                        <div class="metrics-panel__item">
-                            <div class="metrics-panel__label">${t('metricsPanel.bestFitness')}</div>
-                            <div class="metrics-panel__value">
-                                ${formatValue(bestFitness)}
-                            </div>
-                        </div>
-                        <div class="metrics-panel__item">
-                            <div class="metrics-panel__label">${t('metricsPanel.regularizationPenalty')}</div>
-                            <div class="metrics-panel__value">
-                                ${formatValue(regularizationPenalty)}
-                            </div>
-                        </div>
-                        <div class="metrics-panel__item">
-                            <div class="metrics-panel__label">${t('metricsPanel.totalDelta')}</div>
-                            <div class="metrics-panel__value">
-                                ${formatValue(totalDelta, 3)}
-                            </div>
-                        </div>
                         <div class="metrics-panel__item">
                             <div class="metrics-panel__label">${t('metricsPanel.generation')}</div>
                             <div class="metrics-panel__value">
