@@ -292,13 +292,13 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Hide decorative elements (for clean export)
-     * @returns {Object} Original visibility state { objName: boolean }
+     * Hide decorative elements and all labels (for clean export)
+     * @returns {Object} Original state { visibility: {objName: boolean}, labelVisibility: {objName: boolean} }
      */
     hideDecorativeElements() {
         if (!this.ggbApp) {
             console.warn('GeoGebra API not ready');
-            return {};
+            return { visibility: {}, labelVisibility: {} };
         }
 
         const decorativeTypes = [
@@ -312,14 +312,18 @@ export class GeoGebraManager extends EventBus {
             'point'       // All points
         ];
 
-        const originalVisibility = {};
+        const originalState = {
+            visibility: {},
+            labelVisibility: {}
+        };
 
+        // Hide decorative objects
         decorativeTypes.forEach(type => {
             try {
                 const objects = this.ggbApp.getAllObjectNames(type);
                 objects.forEach(objName => {
                     // Store original state
-                    originalVisibility[objName] = this.ggbApp.getVisible(objName);
+                    originalState.visibility[objName] = this.ggbApp.getVisible(objName);
 
                     // Hide object
                     this.ggbApp.setVisible(objName, false);
@@ -329,25 +333,60 @@ export class GeoGebraManager extends EventBus {
             }
         });
 
-        return originalVisibility;
+        // Hide all labels (for all objects, including visible ones)
+        try {
+            const allObjects = this.ggbApp.getAllObjectNames();
+            allObjects.forEach(objName => {
+                try {
+                    // Store original label visibility
+                    originalState.labelVisibility[objName] = this.ggbApp.getLabelVisible(objName);
+
+                    // Hide label
+                    this.ggbApp.setLabelVisible(objName, false);
+                } catch (e) {
+                    // Some objects may not support labels, skip silently
+                }
+            });
+        } catch (e) {
+            console.warn('Could not hide labels:', e);
+        }
+
+        return originalState;
     }
 
     /**
-     * Restore visibility of elements
-     * @param {Object} originalVisibility - Visibility state { objName: boolean }
+     * Restore visibility of elements and labels
+     * @param {Object} originalState - State object { visibility: {...}, labelVisibility: {...} }
+     *                                 or legacy format { objName: boolean }
      */
-    restoreVisibility(originalVisibility) {
-        if (!this.ggbApp || !originalVisibility) {
+    restoreVisibility(originalState) {
+        if (!this.ggbApp || !originalState) {
             return;
         }
 
-        Object.entries(originalVisibility).forEach(([objName, wasVisible]) => {
+        // Support both new format { visibility, labelVisibility } and legacy format
+        const isNewFormat = originalState.visibility !== undefined;
+
+        // Restore object visibility
+        const visibilityMap = isNewFormat ? originalState.visibility : originalState;
+        Object.entries(visibilityMap).forEach(([objName, wasVisible]) => {
             try {
                 this.ggbApp.setVisible(objName, wasVisible);
             } catch (e) {
                 console.warn(`Could not restore visibility for "${objName}":`, e);
             }
         });
+
+        // Restore label visibility (only in new format)
+        if (isNewFormat && originalState.labelVisibility) {
+            Object.entries(originalState.labelVisibility).forEach(([objName, wasLabelVisible]) => {
+                try {
+                    this.ggbApp.setLabelVisible(objName, wasLabelVisible);
+                } catch (e) {
+                    // Some objects may not support labels, skip silently
+                }
+            });
+        }
     }
 
     /**
