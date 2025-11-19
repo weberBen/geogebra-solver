@@ -37,7 +37,7 @@ export class SolverParams extends BaseModule {
             popsize: 10,
             sigma: 0.5,
             tolfun: 0.000001,
-            repaintingMode: 'auto'  // 'auto' | 'always' | 'never'
+            repaintingMode: 'always'  // 'auto' | 'always' | 'never'
         };
 
         // Default values (can be overridden via props)
@@ -46,7 +46,7 @@ export class SolverParams extends BaseModule {
             popsize: 10,
             sigma: 0.5,
             tolfun: 0.000001,
-            repaintingMode: 'auto'
+            repaintingMode: 'always'
         };
 
         // Step values (can be overridden via props)
