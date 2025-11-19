@@ -187,27 +187,27 @@ export class GeoGebraOptimizerUI {
                 component: GeoGebraFrame,
                 row: 1,
                 col: 1,
-                rowSpan: 3,
+                rowSpan: 2,
                 props: { localize }
             },
             {
                 name: 'controls',
                 component: ControlButtons,
-                row: 4,
+                row: 3,
                 col: 1,
                 props: { localize }
             },
             {
                 name: 'progress',
                 component: ProgressBar,
-                row: 5,
+                row: 4,
                 col: 1,
                 props: { localize }
             },
             {
                 name: 'evaluator',
                 component: GeoGebraEvaluator,
-                row: 6,
+                row: 5,
                 col: 1,
                 rowSpan: 2,
                 props: { localize }
@@ -216,7 +216,8 @@ export class GeoGebraOptimizerUI {
                 name: 'snapshot',
                 component: SnapshotHistory,
                 row: 8,
-                col: 1,
+                col: 2,
+                rowSpan: 2,
                 props: { localize }
             },
             // Colonne 2 (droite)
@@ -248,8 +249,8 @@ export class GeoGebraOptimizerUI {
             {
                 name: 'export',
                 component: ExportPanel,
-                row: 8,
-                col: 2,
+                row: 7,
+                col: 1,
                 props: {
                     localize,
                     ...this.exportPanelProps
@@ -259,9 +260,9 @@ export class GeoGebraOptimizerUI {
             {
                 name: 'solver',
                 component: SolverParams,
-                row: 9,
+                row: 8,
                 col: 1,
-                colSpan: 2,
+                rowSpan:2,
                 props: {
                     localize,
                     ...this.solverParamsProps
@@ -272,7 +273,7 @@ export class GeoGebraOptimizerUI {
                 component: LogsPanel,
                 row: 10,
                 col: 1,
-                colSpan: 2,
+                colSpan:2,
                 props: { localize }
             }
         ]);
