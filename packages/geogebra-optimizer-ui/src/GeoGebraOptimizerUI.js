@@ -639,9 +639,7 @@ export class GeoGebraOptimizerUI {
                 const constraints = this.optimizer.getConstraints();
 
                 if (!constraints || constraints.length === 0) {
-                    this.modules.logs?.addEntry('No constraints found. Cannot start optimization.', 'error');
-                    this.modules.controls?.setStatus('Error: No constraints', 'error');
-                    return;
+                    this.modules.logs?.addEntry('No constraints found. Optimization will run with objective function only.', 'warning');
                 }
 
                 // Disable variable value inputs during optimization

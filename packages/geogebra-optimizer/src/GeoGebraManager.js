@@ -545,9 +545,9 @@ export class GeoGebraManager extends EventBus {
 
         // Check that we have at least one constraint
         if (this.constraints.length === 0) {
-            throw new Error(
-                'No constraints found in GeoGebra file.\n' +
-                'Please add constraint definitions in text elements with the format:\n' +
+            console.warn(
+                'No constraints found in GeoGebra file. Optimization will run with objective function only.\n' +
+                'To add constraints, use text elements with the format:\n' +
                 '"constraint(type, operator[, label]):" expression\n\n' +
                 'Examples:\n' +
                 '  "constraint(hard, ==, myConstraint):" + (x + y > 10) + ""\n' +

@@ -272,7 +272,12 @@ export class GeoGebraOptimizer extends EventBus {
         }
 
         if (!constraints || constraints.length === 0) {
-            throw new Error('No constraints provided. Constraints are required for optimization.');
+            console.warn('No constraints provided. Optimization will run with objective function only.');
+            this.emit('log', {
+                level: 'warning',
+                message: 'No constraints provided. Optimization will run with objective function only.'
+            });
+            constraints = []; // Initialize as empty array to avoid undefined errors
         }
 
         this.optimizationRunning = true;
