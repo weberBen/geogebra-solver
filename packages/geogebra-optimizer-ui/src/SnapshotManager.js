@@ -2,7 +2,7 @@ import { EventBus } from '../../geogebra-optimizer/src/EventBus.js';
 
 /**
  * Manages snapshot storage and operations.
- * Tracks slider values before/after optimization runs with circular buffer.
+ * Tracks variable values before/after optimization runs with circular buffer.
  *
  * @class
  * @extends EventBus
@@ -59,19 +59,19 @@ export class SnapshotManager extends EventBus {
      *
      * @param {Object} params - Snapshot parameters
      * @param {string} params.type - Snapshot type: 'before-optimization' | 'after-optimization-complete' | 'after-optimization-stopped'
-     * @param {Object} params.sliderValues - Object mapping slider names to values
-     * @param {string[]} params.selectedSliders - Array of slider names being optimized
+     * @param {Object} params.variableValues - Object mapping variable names to values
+     * @param {string[]} params.selectedVariables - Array of variable names being optimized
      * @param {Object} [params.metrics] - Optimization metrics (optional)
      * @returns {Object} The created snapshot
      *
      * @example
      * manager.createSnapshot({
      *   type: 'before-optimization',
-     *   sliderValues: { AB: 5.2, BC: 3.1 },
-     *   selectedSliders: ['AB', 'BC']
+     *   variableValues: { AB: 5.2, BC: 3.1 },
+     *   selectedVariables: ['AB', 'BC']
      * });
      */
-    createSnapshot({ type, sliderValues, selectedSliders, metrics = {} }) {
+    createSnapshot({ type, variableValues, selectedVariables, metrics = {} }) {
         // Check if an "after" snapshot already exists for this optimization
         const isAfterSnapshot = type !== 'before-optimization';
         if (isAfterSnapshot && this.currentOptimizationId) {
@@ -91,8 +91,8 @@ export class SnapshotManager extends EventBus {
             timestamp: new Date(),
             type,
             optimizationId: this.currentOptimizationId,
-            sliderValues: { ...sliderValues },
-            selectedSliders: [...selectedSliders],
+            variableValues: { ...variableValues },
+            selectedVariables: [...selectedVariables ],
             metrics: { ...metrics }
         };
 

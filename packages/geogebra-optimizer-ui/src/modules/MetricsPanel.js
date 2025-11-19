@@ -25,13 +25,14 @@ export class MetricsPanel extends BaseModule {
         super();
 
         this.state = {
-            bestDistance: null,
-            currentDistance: null,
-            bestFitness: null,
-            regularizationPenalty: null,
-            totalDelta: null,
+            currentObjective: null,
+            currentMovementPenalty: null,
+            currentSoftViolation: null,
+            bestObjective: null,
+            bestHardViolation: null,
             generation: 0,
-            evaluations: 0
+            evaluations: 0,
+            cmaesMetrics: null  // CMA-ES exact metrics
         };
     }
 
@@ -39,18 +40,21 @@ export class MetricsPanel extends BaseModule {
      * Update metrics values.
      *
      * @param {Object} metrics - Metrics to update
-     * @param {number} [metrics.bestDistance] - Best distance found
-     * @param {number} [metrics.currentDistance] - Current distance
-     * @param {number} [metrics.bestFitness] - Best fitness value
-     * @param {number} [metrics.regularizationPenalty] - Regularization penalty
-     * @param {number} [metrics.totalDelta] - Total delta from initial
+     * @param {number} [metrics.currentObjective] - Current objective value (movement + soft)
+     * @param {number} [metrics.currentMovementPenalty] - Current movement penalty
+     * @param {number} [metrics.currentSoftViolation] - Current soft constraints violation
+     * @param {number} [metrics.bestObjective] - Best objective found
+     * @param {number} [metrics.bestHardViolation] - Best hard constraints violation
      * @param {number} [metrics.generation] - Current generation
      * @param {number} [metrics.evaluations] - Total evaluations
+     * @param {Object} [metrics.cmaesMetrics] - CMA-ES exact metrics
      * @example
      * metricsPanel.updateMetrics({
-     *   bestDistance: 0.0123,
+     *   currentObjective: 1.234,
+     *   bestHardViolation: 0.0001,
      *   generation: 50,
-     *   evaluations: 500
+     *   evaluations: 500,
+     *   cmaesMetrics: { lambda: [...], mu: 1.0, alPenalty: 0.5 }
      * });
      */
     updateMetrics(metrics) {
@@ -64,13 +68,14 @@ export class MetricsPanel extends BaseModule {
      */
     reset() {
         this.setState({
-            bestDistance: null,
-            currentDistance: null,
-            bestFitness: null,
-            regularizationPenalty: null,
-            totalDelta: null,
+            currentObjective: null,
+            currentMovementPenalty: null,
+            currentSoftViolation: null,
+            bestObjective: null,
+            bestHardViolation: null,
             generation: 0,
-            evaluations: 0
+            evaluations: 0,
+            cmaesMetrics: null
         });
     }
 
@@ -80,13 +85,14 @@ export class MetricsPanel extends BaseModule {
     render() {
         const t = this.t.bind(this);
         const {
-            bestDistance,
-            currentDistance,
-            bestFitness,
-            regularizationPenalty,
-            totalDelta,
+            currentObjective,
+            currentMovementPenalty,
+            currentSoftViolation,
+            bestObjective,
+            bestHardViolation,
             generation,
-            evaluations
+            evaluations,
+            cmaesMetrics
         } = this.state;
 
         const formatValue = (value, precision = 6) => {
@@ -95,43 +101,76 @@ export class MetricsPanel extends BaseModule {
                 : '-';
         };
 
+        // CMA-ES metrics section (always displayed)
+        const cmaesSection = `
+            <div class="metrics-panel__group metrics-panel__group--full-width">
+                <div class="metrics-panel__group-title">${t('metricsPanel.cmaesMetrics')}</div>
+                <div class="metrics-panel__cmaes-items">
+                    <div class="metrics-panel__item">
+                        <div class="metrics-panel__label">${t('metricsPanel.alPenalty')}</div>
+                        <div class="metrics-panel__value">${cmaesMetrics ? formatValue(cmaesMetrics.alPenalty) : '-'}</div>
+                    </div>
+                    <div class="metrics-panel__item">
+                        <div class="metrics-panel__label">${t('metricsPanel.hardViolation')}</div>
+                        <div class="metrics-panel__value">${cmaesMetrics ? formatValue(cmaesMetrics.hardViolation) : '-'}</div>
+                    </div>
+                    <div class="metrics-panel__item">
+                        <div class="metrics-panel__label">${t('metricsPanel.isFeasible')}</div>
+                        <div class="metrics-panel__value">${cmaesMetrics ? (cmaesMetrics.isFeasible ? '✓' : '✗') : '-'}</div>
+                    </div>
+                    <div class="metrics-panel__item">
+                        <div class="metrics-panel__label">${t('metricsPanel.mu')}</div>
+                        <div class="metrics-panel__value">${cmaesMetrics ? formatValue(cmaesMetrics.mu, 2) : '-'}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
         this.innerHTML = `
             <div class="metrics-panel">
                 <div class="metrics-panel__header">
                     <h3 class="metrics-panel__title">${t('metricsPanel.title')}</h3>
                 </div>
                 <div class="metrics-panel__content">
+                    <div class="metrics-panel__groups">
+                        <div class="metrics-panel__group">
+                            <div class="metrics-panel__item">
+                                <div class="metrics-panel__label">${t('metricsPanel.bestObjective')}</div>
+                                <div class="metrics-panel__value metrics-panel__value--primary">
+                                    ${formatValue(bestObjective)}
+                                </div>
+                            </div>
+                            <div class="metrics-panel__item">
+                                <div class="metrics-panel__label">${t('metricsPanel.bestHardViolation')}</div>
+                                <div class="metrics-panel__value metrics-panel__value--primary">
+                                    ${formatValue(bestHardViolation)}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="metrics-panel__group">
+                            <div class="metrics-panel__group-title">${t('metricsPanel.currentMetrics')}</div>
+                            <div class="metrics-panel__item">
+                                <div class="metrics-panel__label">${t('metricsPanel.currentObjective')}</div>
+                                <div class="metrics-panel__value">
+                                    ${formatValue(currentObjective)}
+                                </div>
+                            </div>
+                            <div class="metrics-panel__item">
+                                <div class="metrics-panel__label">${t('metricsPanel.movementPenalty')}</div>
+                                <div class="metrics-panel__value">
+                                    ${formatValue(currentMovementPenalty)}
+                                </div>
+                            </div>
+                            <div class="metrics-panel__item">
+                                <div class="metrics-panel__label">${t('metricsPanel.softViolation')}</div>
+                                <div class="metrics-panel__value">
+                                    ${formatValue(currentSoftViolation)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ${cmaesSection}
                     <div class="metrics-panel__grid">
-                        <div class="metrics-panel__item">
-                            <div class="metrics-panel__label">${t('metricsPanel.bestDistance')}</div>
-                            <div class="metrics-panel__value metrics-panel__value--primary">
-                                ${formatValue(bestDistance)}
-                            </div>
-                        </div>
-                        <div class="metrics-panel__item">
-                            <div class="metrics-panel__label">${t('metricsPanel.currentDistance')}</div>
-                            <div class="metrics-panel__value">
-                                ${formatValue(currentDistance)}
-                            </div>
-                        </div>
-                        <div class="metrics-panel__item">
-                            <div class="metrics-panel__label">${t('metricsPanel.bestFitness')}</div>
-                            <div class="metrics-panel__value">
-                                ${formatValue(bestFitness)}
-                            </div>
-                        </div>
-                        <div class="metrics-panel__item">
-                            <div class="metrics-panel__label">${t('metricsPanel.regularizationPenalty')}</div>
-                            <div class="metrics-panel__value">
-                                ${formatValue(regularizationPenalty)}
-                            </div>
-                        </div>
-                        <div class="metrics-panel__item">
-                            <div class="metrics-panel__label">${t('metricsPanel.totalDelta')}</div>
-                            <div class="metrics-panel__value">
-                                ${formatValue(totalDelta, 3)}
-                            </div>
-                        </div>
                         <div class="metrics-panel__item">
                             <div class="metrics-panel__label">${t('metricsPanel.generation')}</div>
                             <div class="metrics-panel__value">

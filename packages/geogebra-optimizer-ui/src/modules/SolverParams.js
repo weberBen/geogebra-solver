@@ -26,7 +26,7 @@ import { BaseModule } from '../BaseModule.js';
  */
 export class SolverParams extends BaseModule {
     static get observedAttributes() {
-        return ['maxiter', 'popsize', 'sigma', 'tolfun'];
+        return ['maxiter', 'popsize', 'sigma', 'tolfun', 'repaintingmode'];
     }
 
     constructor() {
@@ -36,7 +36,8 @@ export class SolverParams extends BaseModule {
             maxiter: 100,
             popsize: 10,
             sigma: 0.5,
-            tolfun: 0.000001
+            tolfun: 0.000001,
+            repaintingMode: 'always'  // 'auto' | 'always' | 'never'
         };
 
         // Default values (can be overridden via props)
@@ -44,7 +45,8 @@ export class SolverParams extends BaseModule {
             maxiter: 100,
             popsize: 10,
             sigma: 0.5,
-            tolfun: 0.000001
+            tolfun: 0.000001,
+            repaintingMode: 'always'
         };
 
         // Step values (can be overridden via props)
@@ -80,7 +82,11 @@ export class SolverParams extends BaseModule {
      */
     attributeChangedCallback(name, oldValue, newValue) {
         if (oldValue !== newValue) {
-            this.state[name] = parseFloat(newValue);
+            if (name === 'repaintingmode') {
+                this.state.repaintingMode = newValue;
+            } else {
+                this.state[name] = parseFloat(newValue);
+            }
             this.render();
         }
     }
@@ -113,7 +119,7 @@ export class SolverParams extends BaseModule {
      */
     render() {
         const t = this.t.bind(this);
-        const { maxiter, popsize, sigma, tolfun } = this.state;
+        const { maxiter, popsize, sigma, tolfun, repaintingMode } = this.state;
 
         this.innerHTML = `
             <div class="solver-params">
@@ -174,6 +180,28 @@ export class SolverParams extends BaseModule {
                             />
                         </label>
                     </div>
+                    <div class="solver-params__field">
+                        <label class="solver-params__label">
+                            ${t('solverParams.repaintingMode')}
+                            <select
+                                class="solver-params__select"
+                                data-param="repaintingMode"
+                            >
+                                <option value="auto" ${repaintingMode === 'auto' ? 'selected' : ''}>
+                                    ${t('solverParams.repaintingModeAuto')}
+                                </option>
+                                <option value="always" ${repaintingMode === 'always' ? 'selected' : ''}>
+                                    ${t('solverParams.repaintingModeAlways')}
+                                </option>
+                                <option value="never" ${repaintingMode === 'never' ? 'selected' : ''}>
+                                    ${t('solverParams.repaintingModeNever')}
+                                </option>
+                            </select>
+                        </label>
+                        <div class="solver-params__description">
+                            ${t('solverParams.repaintingModeDescription')}
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -186,6 +214,7 @@ export class SolverParams extends BaseModule {
      * @private
      */
     attachEventListeners() {
+        // Number inputs
         this.$$('.solver-params__input').forEach(input => {
             input.addEventListener('change', (e) => {
                 const param = e.target.dataset.param;
@@ -194,6 +223,17 @@ export class SolverParams extends BaseModule {
                 this.emit('params-changed', this.getParams());
             });
         });
+
+        // Select input
+        const select = this.$('.solver-params__select');
+        if (select) {
+            select.addEventListener('change', (e) => {
+                const param = e.target.dataset.param;
+                const value = e.target.value;
+                this.state[param] = value;
+                this.emit('params-changed', this.getParams());
+            });
+        }
     }
 }
 

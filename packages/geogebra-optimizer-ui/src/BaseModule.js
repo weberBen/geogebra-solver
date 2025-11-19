@@ -88,11 +88,11 @@ export class BaseModule extends HTMLElement {
      * Translate a localization key.
      * Uses the localize function from props, or returns key if not provided.
      *
-     * @param {string} key - Localization key (e.g., 'sliderPanel.title')
+     * @param {string} key - Localization key (e.g., 'variablePanel.title')
      * @param {Object} [params] - Optional parameters for string interpolation
      * @returns {string} Translated string
      * @example
-     * const title = this.t('sliderPanel.title');
+     * const title = this.t('variablePanel.title');
      * const message = this.t('welcome', { name: 'John' });
      */
     t(key, params = {}) {

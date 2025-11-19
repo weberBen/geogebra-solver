@@ -1,25 +1,30 @@
 """
-Optimiseur CMA-ES pour GeoGebra
+CMA-ES optimizer for GeoGebra with hard constraints (ConstrainedFitnessAL)
 """
 import cma
 import json
 
 
+# Storage for current evaluation values (set from JavaScript)
+_current_objective = None
+_current_constraints = []  # List of constraint values (AL-transformed)
+
+
 def initialize_optimizer(initial_guess, bounds_min, bounds_max, sigma=0.5, maxiter=100, popsize=10, tolfun=1e-6):
     """
-    Initialise l'optimiseur CMA-ES
+    Initialize CMA-ES optimizer with ConstrainedFitnessAL
 
     Args:
-        initial_guess: Valeurs initiales des paramètres
-        bounds_min: Bornes minimales
-        bounds_max: Bornes maximales
-        sigma: Écart-type initial
-        maxiter: Nombre maximum d'itérations
-        popsize: Taille de la population
-        tolfun: Tolérance sur la fonction objectif
+        initial_guess: Initial parameter values
+        bounds_min: Minimum bounds
+        bounds_max: Maximum bounds
+        sigma: Initial step size
+        maxiter: Maximum number of iterations
+        popsize: Population size
+        tolfun: Tolerance on objective function
 
     Returns:
-        Optimiseur CMA-ES initialisé
+        Tuple (CMA-ES optimizer, ConstrainedFitnessAL)
     """
     bounds = [bounds_min, bounds_max]
 
@@ -34,47 +39,207 @@ def initialize_optimizer(initial_guess, bounds_min, bounds_max, sigma=0.5, maxit
 
     es = cma.CMAEvolutionStrategy(initial_guess, sigma, opts)
 
-    return es
+    # Define wrapper functions that use stored values
+    def objective_wrapper(x):
+        """Returns stored objective (L2 penalty)"""
+        return _current_objective
+
+    def constraints_wrapper(x):
+        """Returns stored constraints (dynamic list, already transformed for AL)"""
+        # Constraint must be <= 0 to be satisfied
+        # Constraints are already transformed on JavaScript side
+        return _current_constraints
+
+    # Create ConstrainedFitnessAL instance
+    # find_feasible_first=True forces the algorithm to find a feasible solution before optimizing
+    cfun = cma.ConstrainedFitnessAL(
+        objective_wrapper,
+        constraints_wrapper,
+        find_feasible_first=True
+    )
+
+    return es, cfun
 
 
 def ask_solutions(es):
     """
-    Demande une nouvelle population de solutions
+    Request a new population of solutions
 
     Args:
-        es: Optimiseur CMA-ES
+        es: CMA-ES optimizer
 
     Returns:
-        Liste de solutions (JSON)
+        List of solutions (JSON)
     """
     solutions = es.ask()
     return json.dumps([list(sol) for sol in solutions])
 
 
-def tell_results(es, solutions, fitnesses):
+def tell_results(es, solutions, fitnesses, cfun):
     """
-    Retourne les résultats d'évaluation à l'optimiseur
+    Return evaluation results to optimizer and update AL coefficients
 
     Args:
-        es: Optimiseur CMA-ES
-        solutions: Solutions évaluées
-        fitnesses: Valeurs de fitness correspondantes
+        es: CMA-ES optimizer
+        solutions: Evaluated solutions
+        fitnesses: Corresponding fitness values
+        cfun: ConstrainedFitnessAL instance
 
     Returns:
         "ok"
     """
     es.tell(solutions, fitnesses)
+    cfun.update(es)
     return "ok"
+
+
+def get_best_feasible(cfun):
+    """
+    Retrieve the best feasible solution found
+
+    Args:
+        cfun: ConstrainedFitnessAL instance
+
+    Returns:
+        JSON with {solution, objective, feasible} or None if no feasible solution
+    """
+    if cfun.best_feas is None or cfun.best_feas.x is None:
+        return json.dumps(None)
+
+    return json.dumps({
+        'solution': list(cfun.best_feas.x),
+        'objective': float(cfun.best_feas.f),
+        'feasible': True
+    })
+
+
+def is_feasible(cfun):
+    """
+    Check if the last evaluated solution is feasible
+
+    Args:
+        cfun: ConstrainedFitnessAL instance
+
+    Returns:
+        True if feasible, False otherwise
+    """
+    if not hasattr(cfun, 'G') or len(cfun.G) == 0:
+        return False
+
+    # A solution is feasible if all constraints are <= 0
+    last_constraints = cfun.G[-1]
+    return all(g <= 0 for g in last_constraints)
 
 
 def check_convergence(es):
     """
-    Vérifie si l'optimiseur a convergé
+    Check if the optimizer has converged
 
     Args:
-        es: Optimiseur CMA-ES
+        es: CMA-ES optimizer
 
     Returns:
-        Dictionnaire de critères d'arrêt (vide si pas convergé)
+        Dictionary of stopping criteria (empty if not converged)
     """
     return str(es.stop())
+
+
+def get_cmaes_metrics(cfun, last_solution):
+    """
+    Get EXACT metrics from ConstrainedFitnessAL (no approximation)
+
+    Args:
+        cfun: ConstrainedFitnessAL instance
+        last_solution: Last evaluated solution
+
+    Returns:
+        JSON with exact CMA-ES metrics
+    """
+    if not hasattr(cfun, 'G') or len(cfun.G) == 0:
+        return json.dumps(None)
+
+    # Last evaluated constraints (raw g(x) values)
+    last_constraints = cfun.G[-1]
+
+    # EXACT: True AL fitness
+    true_al_fitness = cfun(last_solution)
+
+    # EXACT: AL penalty = fitness_AL - objective
+    al_penalty = true_al_fitness - _current_objective
+
+    # EXACT: Violations (max(0, g))
+    violations = [max(0, g) for g in last_constraints]
+    hard_violation = max(violations) if violations else 0
+    mean_violation = sum(violations) / len(violations) if violations else 0
+
+    # EXACT: Feasibility
+    is_feas = all(g <= 0 for g in last_constraints)
+
+    # EXACT: Lagrange multipliers
+    lambda_vals = list(cfun.lambda_) if hasattr(cfun, 'lambda_') else []
+
+    # EXACT: Penalty factor
+    mu_val = float(cfun.mu) if hasattr(cfun, 'mu') else 1.0
+
+    return json.dumps({
+        'lambda': lambda_vals,
+        'mu': mu_val,
+        'alFitness': float(true_al_fitness),
+        'alPenalty': float(al_penalty),
+        'hardViolation': float(hard_violation),
+        'meanViolation': float(mean_violation),
+        'isFeasible': is_feas,
+        'constraints': list(last_constraints)
+    })
+
+
+def evaluate_batch(evaluations):
+    """
+    Evaluate a batch of solutions with exact CMA-ES metrics
+
+    Args:
+        evaluations: List of {
+            'solution': [x1, x2, ...],
+            'objective': float,
+            'alConstraints': [g1, g2, ...]
+        }
+
+    Returns:
+        JSON with {
+            'fitnesses': [...],
+            'feasibilities': [...],
+            'cmaesMetrics': {...}  # Exact metrics from last eval
+        }
+    """
+    global _current_objective, _current_constraints
+
+    fitnesses = []
+    feasibilities = []
+    last_solution = None
+
+    for eval_data in evaluations:
+        solution = eval_data['solution']
+
+        # Update global variables
+        _current_objective = eval_data['objective']
+        _current_constraints = eval_data['alConstraints']
+
+        # Evaluate with ConstrainedFitnessAL
+        fitness = cfun(solution)
+        feasible = is_feasible(cfun)
+
+        fitnesses.append(float(fitness))
+        feasibilities.append(feasible)
+        last_solution = solution
+
+    # Get EXACT metrics from last eval
+    cmaes_metrics = None
+    if last_solution is not None:
+        metrics_json = get_cmaes_metrics(cfun, last_solution)
+        cmaes_metrics = json.loads(metrics_json) if metrics_json else None
+
+    return json.dumps({
+        'fitnesses': fitnesses,
+        'feasibilities': feasibilities,
+        'cmaesMetrics': cmaes_metrics
+    })

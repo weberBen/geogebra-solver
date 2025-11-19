@@ -204,7 +204,7 @@ export class ExportManager extends EventBus {
      * @param {Object} [options={}] - Export options
      * @param {string} [options.filename='geogebra-export.svg'] - Output filename
      * @param {boolean} [options.download=true] - Auto-download the file
-     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, sliders, points, etc.)
+     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, variables, points, etc.)
      * @returns {Promise<string>} SVG content
      *
      * @example
@@ -224,8 +224,15 @@ export class ExportManager extends EventBus {
 
         let prevViewport = null;
         let originalVisibility = null;
+        let decorationValue = null;
         try {
             const api = this.getGeoGebraAPI();
+
+            // Save and disable decoration checkbox
+            if (api.exists('decoration')) {
+                decorationValue = api.getValue('decoration');
+                api.setValue('decoration', false);
+            }
 
             // Hide decorative elements if requested
             if (hideDecorative) {
@@ -274,6 +281,12 @@ export class ExportManager extends EventBus {
             if (originalVisibility) {
                 this.geogebraManager.restoreVisibility(originalVisibility);
             }
+
+            // Restore decoration checkbox
+            if (decorationValue !== null) {
+                const api = this.getGeoGebraAPI();
+                api.setValue('decoration', decorationValue);
+            }
         }
     }
 
@@ -286,7 +299,7 @@ export class ExportManager extends EventBus {
      * @param {boolean} [options.transparent=false] - Transparent background
      * @param {string} [options.filename='geogebra-export.png'] - Output filename
      * @param {boolean} [options.download=true] - Auto-download the file
-     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, sliders, points, etc.)
+     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, variables, points, etc.)
      * @returns {Promise<string>} PNG as base64 string
      *
      * @example
@@ -308,8 +321,15 @@ export class ExportManager extends EventBus {
 
         let prevViewport = null;
         let originalVisibility = null;
+        let decorationValue = null;
         try {
             const api = this.getGeoGebraAPI();
+
+            // Save and disable decoration checkbox
+            if (api.exists('decoration')) {
+                decorationValue = api.getValue('decoration');
+                api.setValue('decoration', false);
+            }
 
             // Hide decorative elements if requested
             if (hideDecorative) {
@@ -364,6 +384,12 @@ export class ExportManager extends EventBus {
             if (originalVisibility) {
                 this.geogebraManager.restoreVisibility(originalVisibility);
             }
+
+            // Restore decoration checkbox
+            if (decorationValue !== null) {
+                const api = this.getGeoGebraAPI();
+                api.setValue('decoration', decorationValue);
+            }
         }
     }
 
@@ -375,7 +401,7 @@ export class ExportManager extends EventBus {
      * @param {number} [options.scale=1] - Scale factor
      * @param {string} [options.filename='geogebra-export.pdf'] - Output filename
      * @param {boolean} [options.download=true] - Auto-download the file
-     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, sliders, points, etc.)
+     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, variables, points, etc.)
      * @returns {Promise<void>}
      *
      * @example
@@ -396,12 +422,19 @@ export class ExportManager extends EventBus {
 
         let prevViewport = null;
         let originalVisibility = null;
+        let decorationValue = null;
         try {
             const api = this.getGeoGebraAPI();
 
             // Check if exportPDF is available
             if (typeof api.exportPDF !== 'function') {
                 throw new Error('PDF export not available in this GeoGebra version');
+            }
+
+            // Save and disable decoration checkbox
+            if (api.exists('decoration')) {
+                decorationValue = api.getValue('decoration');
+                api.setValue('decoration', false);
             }
 
             // Hide decorative elements if requested
@@ -443,6 +476,12 @@ export class ExportManager extends EventBus {
             // Restore visibility of decorative elements
             if (originalVisibility) {
                 this.geogebraManager.restoreVisibility(originalVisibility);
+            }
+
+            // Restore decoration checkbox
+            if (decorationValue !== null) {
+                const api = this.getGeoGebraAPI();
+                api.setValue('decoration', decorationValue);
             }
         }
     }

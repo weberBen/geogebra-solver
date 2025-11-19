@@ -3,15 +3,16 @@
     "title": "Visualiseur GeoGebra",
     "loading": "Chargement de GeoGebra..."
   },
-  "sliderPanel": {
-    "title": "Sliders",
+  "variablePanel": {
+    "title": "Variables",
     "selectAll": "Tout sélectionner",
     "deselectAll": "Tout désélectionner",
     "name": "Nom",
     "value": "Valeur",
+    "weight": "Poids",
     "delta": "Δ",
     "bounds": "Bornes",
-    "noSliders": "Aucun slider disponible"
+    "noVariables": "Aucune variable disponible"
   },
   "controlButtons": {
     "start": "Démarrer l'optimisation",
@@ -22,22 +23,44 @@
     "maxiter": "Itérations Max",
     "popsize": "Taille Population",
     "sigma": "Pas (σ)",
-    "tolfun": "Tolérance"
-  },
-  "objectiveParams": {
-    "title": "Paramètres de l'Objectif",
-    "lambda": "Régularisation (λ)",
-    "lambdaDescription": "Contrôle l'équilibre entre minimisation de distance et changements des sliders"
+    "tolfun": "Tolérance",
+    "repaintingMode": "Mode de Rendu",
+    "repaintingModeDescription": "Contrôle le rendu GeoGebra pendant l'optimisation",
+    "repaintingModeAuto": "Auto (désactivé pendant, activé après)",
+    "repaintingModeAlways": "Toujours (voir la progression en direct)",
+    "repaintingModeNever": "Jamais (performance maximale)"
   },
   "metricsPanel": {
     "title": "Métriques",
-    "bestDistance": "Meilleure Distance",
-    "currentDistance": "Distance Actuelle",
-    "bestFitness": "Meilleur Fitness",
-    "regularizationPenalty": "Pénalité Régularisation",
-    "totalDelta": "Δ Total",
+    "bestObjective": "Meilleur Objectif",
+    "currentObjective": "Objectif Actuel",
+    "bestHardViolation": "Meilleure Violation Stricte",
+    "currentMetrics": "Métriques Actuelles",
+    "movementPenalty": "Pénalité de Mouvement",
+    "softViolation": "Violation Souple",
     "generation": "Génération",
-    "evaluations": "Évaluations"
+    "evaluations": "Évaluations",
+    "cmaesMetrics": "Métriques CMA-ES",
+    "alPenalty": "Pénalité AL",
+    "hardViolation": "Violation Stricte",
+    "isFeasible": "Faisable",
+    "mu": "Facteur de Pénalité (μ)"
+  },
+  "constraintsPanel": {
+    "title": "Contraintes",
+    "hardConstraints": "Contraintes Strictes",
+    "softConstraints": "Contraintes Souples",
+    "weight": "Poids",
+    "enabled": "Activé",
+    "noHardConstraints": "Aucune contrainte stricte",
+    "noSoftConstraints": "Aucune contrainte souple"
+  },
+  "geogebraEvaluator": {
+    "title": "Évaluateur GeoGebra",
+    "placeholder": "Entrez une expression GeoGebra (ex: Distance[A, A'])",
+    "evaluate": "Évaluer",
+    "result": "Résultat",
+    "error": "Erreur"
   },
   "logsPanel": {
     "title": "Logs",
@@ -55,7 +78,7 @@
     "restore": "Restaurer",
     "columnTime": "Heure",
     "columnType": "Type",
-    "columnSliders": "Valeurs des Sliders",
+    "columnVariables": "Valeurs des Variables",
     "columnMetrics": "Métriques",
     "columnActions": "Actions",
     "typeBefore": "Avant Optimisation",
@@ -86,7 +109,7 @@
     "exportXML": "Exporter XML",
     "pngScale": "Échelle PNG",
     "pngTransparent": "Fond Transparent",
-    "hideDecorative": "Masquer éléments décoratifs (texte, points, sliders, etc.)",
+    "hideDecorative": "Masquer éléments décoratifs (texte, points, variables, etc.)",
     "webhookExport": "Traitement Serveur",
     "webhookUrl": "URL Webhook",
     "sourceFormat": "Format Source",

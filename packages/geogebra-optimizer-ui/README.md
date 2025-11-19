@@ -32,9 +32,9 @@ const ui = new GeoGebraOptimizerUI({
   optimizer,
   locale: 'en', // or 'fr'
 
-  // Configure slider panel
-  sliderPanelProps: {
-    sliderValueStep: 0.5  // Step for slider value inputs (default: 0.5)
+  // Configure variable panel
+  variablePanelProps: {
+    variableValueStep: 0.5  // Step for variable value inputs (default: 0.5)
   },
 
   // Configure objective parameters
@@ -58,7 +58,7 @@ const ui = new GeoGebraOptimizerUI({
       tolfun: 0.000001     // Step for tolfun input (default: 0.000001)
     }
   },
-
+mai
   // Configure export panel
   exportPanelProps: {
     pngScaleStep: 0.5,     // Step for PNG scale input (default: 0.5)
@@ -105,7 +105,7 @@ All components are Web Components (Custom Elements) that can be used standalone 
 ### Available Components
 
 - **`<ggb-frame>`** - GeoGebra viewer
-- **`<slider-panel>`** - Slider selection and control
+- **`<variable-panel>`** - Variable selection and control
 - **`<control-buttons>`** - Start/Stop/Reset buttons
 - **`<solver-params>`** - CMA-ES solver parameters
 - **`<objective-params>`** - Objective function parameters
@@ -208,7 +208,7 @@ const ui = new GeoGebraOptimizerUI({
 ### Custom Module Positioning
 
 ```javascript
-import { GeoGebraFrame, SliderPanel, ControlButtons } from 'geogebra-optimizer-ui';
+import { GeoGebraFrame, VariablePanel, ControlButtons } from 'geogebra-optimizer-ui';
 
 const ui = new GeoGebraOptimizerUI({
   container: document.getElementById('app'),
@@ -223,8 +223,8 @@ const ui = new GeoGebraOptimizerUI({
       colSpan: 2
     },
     {
-      name: 'sliders',
-      component: SliderPanel,
+      name: 'variables',
+      component: VariablePanel,
       row: 1,
       col: 3
     },
@@ -399,13 +399,13 @@ The server runs on `http://localhost:5000` by default.
 
 The UI uses a modular architecture where each module can be configured independently via dedicated props objects. This approach provides better organization and clearer API than the previous scattered configuration.
 
-### Slider Panel Props
+### Variable Panel Props
 
-Configure the slider panel via `sliderPanelProps`:
+Configure the variable panel via `variablePanelProps`:
 
 ```javascript
-sliderPanelProps: {
-  sliderValueStep: 0.5  // Step value for slider inputs (default: 0.5)
+variablePanelProps: {
+  variableValueStep: 0.5  // Step value for variable inputs (default: 0.5)
 }
 ```
 
@@ -460,7 +460,7 @@ new GeoGebraOptimizerUI(config)
 - `localize?: Function` - Custom localization function
 - `layout?: Object` - Layout configuration
 - `modules?: Array` - Custom module configuration
-- `sliderPanelProps?: Object` - SliderPanel configuration
+- `variablePanelProps?: Object` - VariablePanel configuration
 - `objectiveParamsProps?: Object` - ObjectiveParams configuration
 - `solverParamsProps?: Object` - SolverParams configuration
 - `exportPanelProps?: Object` - ExportPanel configuration

@@ -3,15 +3,16 @@
     "title": "GeoGebra Viewer",
     "loading": "Loading GeoGebra..."
   },
-  "sliderPanel": {
-    "title": "Sliders",
+  "variablePanel": {
+    "title": "Variables",
     "selectAll": "Select All",
     "deselectAll": "Deselect All",
     "name": "Name",
     "value": "Value",
+    "weight": "Weight",
     "delta": "Δ",
     "bounds": "Bounds",
-    "noSliders": "No sliders available"
+    "noVariables": "No variables available"
   },
   "controlButtons": {
     "start": "Start Optimization",
@@ -22,22 +23,44 @@
     "maxiter": "Max Iterations",
     "popsize": "Population Size",
     "sigma": "Step Size (σ)",
-    "tolfun": "Tolerance"
-  },
-  "objectiveParams": {
-    "title": "Objective Parameters",
-    "lambda": "Regularization (λ)",
-    "lambdaDescription": "Controls trade-off between distance minimization and slider changes"
+    "tolfun": "Tolerance",
+    "repaintingMode": "Rendering Mode",
+    "repaintingModeDescription": "Control GeoGebra rendering during optimization",
+    "repaintingModeAuto": "Auto (disable during, enable after)",
+    "repaintingModeAlways": "Always (see live progress)",
+    "repaintingModeNever": "Never (maximum performance)"
   },
   "metricsPanel": {
     "title": "Metrics",
-    "bestDistance": "Best Distance",
-    "currentDistance": "Current Distance",
-    "bestFitness": "Best Fitness",
-    "regularizationPenalty": "Regularization Penalty",
-    "totalDelta": "Total Δ",
+    "bestObjective": "Best Objective",
+    "currentObjective": "Current Objective",
+    "bestHardViolation": "Best Hard Violation",
+    "currentMetrics": "Current Metrics",
+    "movementPenalty": "Movement Penalty",
+    "softViolation": "Soft Violation",
     "generation": "Generation",
-    "evaluations": "Evaluations"
+    "evaluations": "Evaluations",
+    "cmaesMetrics": "CMA-ES Metrics",
+    "alPenalty": "AL Penalty",
+    "hardViolation": "Hard Violation",
+    "isFeasible": "Feasible",
+    "mu": "Penalty Factor (μ)"
+  },
+  "constraintsPanel": {
+    "title": "Constraints",
+    "hardConstraints": "Hard Constraints",
+    "softConstraints": "Soft Constraints",
+    "weight": "Weight",
+    "enabled": "Enabled",
+    "noHardConstraints": "No hard constraints",
+    "noSoftConstraints": "No soft constraints"
+  },
+  "geogebraEvaluator": {
+    "title": "GeoGebra Evaluator",
+    "placeholder": "Enter GeoGebra expression (e.g., Distance[A, A'])",
+    "evaluate": "Evaluate",
+    "result": "Result",
+    "error": "Error"
   },
   "logsPanel": {
     "title": "Logs",
@@ -55,7 +78,7 @@
     "restore": "Restore",
     "columnTime": "Time",
     "columnType": "Type",
-    "columnSliders": "Slider Values",
+    "columnVariables": "Variable Values",
     "columnMetrics": "Metrics",
     "columnActions": "Actions",
     "typeBefore": "Before Optimization",
@@ -86,7 +109,7 @@
     "exportXML": "Export XML",
     "pngScale": "PNG Scale",
     "pngTransparent": "Transparent Background",
-    "hideDecorative": "Hide decorative elements (text, points, sliders, etc.)",
+    "hideDecorative": "Hide decorative elements (text, points, variables, etc.)",
     "webhookExport": "Server-Side Processing",
     "webhookUrl": "Webhook URL",
     "sourceFormat": "Source Format",

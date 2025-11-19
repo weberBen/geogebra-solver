@@ -16,10 +16,18 @@ import { ProgressTracker } from './ProgressTracker.js';
  */
 
 /**
+ * @typedef {Object} Constraint
+ * @property {string} expr - GeoGebra expression (e.g., "Distance(A',A)", "angle(ABC)")
+ * @property {string} op - Operator: "=", "<", ">", "<=", ">="
+ * @property {number} value - Target value for the constraint
+ * @property {number} [tolerance] - Tolerance for the constraint (uses default if not provided)
+ */
+
+/**
  * @typedef {Object} OptimizeOptions
- * @property {string[]} selectedSliders - Names of sliders to optimize
- * @property {Object} [objectiveParams] - Objective function parameters
- * @property {number} [objectiveParams.lambda=0.01] - Regularization lambda
+ * @property {string[]} selectedVariables - Names of variables to optimize
+ * @property {Constraint[]} [constraints] - List of constraints (defaults to Distance(A',A)=0)
+ * @property {number} [defaultTolerance=1e-4] - Default tolerance for constraints without explicit tolerance
  * @property {Object} [solverParams] - CMA-ES solver parameters
  * @property {number} [solverParams.maxiter=100] - Maximum iterations
  * @property {number} [solverParams.popsize=10] - Population size
@@ -64,8 +72,8 @@ import { ProgressTracker } from './ProgressTracker.js';
  * const optimizer = new GeoGebraOptimizer();
  *
  * // Listen to events
- * optimizer.on('ready', ({ ggbApi, sliders }) => {
- *   console.log('Ready with sliders:', sliders);
+ * optimizer.on('ready', ({ ggbApi, variables }) => {
+ *   console.log('Ready with variables:', variables);
  * });
  *
  * optimizer.on('optimization:newBest', ({ solution, metrics }) => {
@@ -82,10 +90,12 @@ import { ProgressTracker } from './ProgressTracker.js';
  *   }
  * });
  *
- * // Optimize
+ * // Optimize with constraints
  * await optimizer.optimize({
- *   selectedSliders: ['AB', 'BC', 'CD'],
- *   objectiveParams: { lambda: 0.01 },
+ *   selectedVariables: ['AB', 'BC', 'CD'],
+ *   constraints: [
+ *     { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 }
+ *   ],
  *   solverParams: { maxiter: 100 }
  * });
  */
@@ -119,7 +129,7 @@ export class GeoGebraOptimizer extends EventBus {
      * @fires GeoGebraOptimizer#pyodide:ready - When PyOdide is ready
      * @fires GeoGebraOptimizer#geogebra:loading - When GeoGebra starts loading
      * @fires GeoGebraOptimizer#geogebra:ready - When GeoGebra is ready
-     * @fires GeoGebraOptimizer#constraints:loaded - When sliders are detected
+     * @fires GeoGebraOptimizer#constraints:loaded - When variables are detected
      * @fires GeoGebraOptimizer#ready - When both are ready
      * @fires GeoGebraOptimizer#error - On initialization error
      *
@@ -149,7 +159,7 @@ export class GeoGebraOptimizer extends EventBus {
 
             // Forward events
             this.forwardEvents(this.pyodideManager, ['pyodide:loading', 'pyodide:ready', 'error', 'log']);
-            this.forwardEvents(this.geogebraManager, ['geogebra:loading', 'geogebra:ready', 'constraints:loaded', 'slider:changed', 'sliders:updated', 'error']);
+            this.forwardEvents(this.geogebraManager, ['geogebra:loading', 'geogebra:ready', 'constraints:loaded', 'variable:changed', 'variables:updated', 'error']);
 
             // Load PyOdide and GeoGebra in parallel
             await Promise.all([
@@ -179,7 +189,7 @@ export class GeoGebraOptimizer extends EventBus {
             this.state.isReady = true;
             this.emit('ready', {
                 ggbApi: this.geogebraManager.getAPI(),
-                sliders: this.geogebraManager.getSliders()
+                variables: this.geogebraManager.getVariables()
             });
         } catch (error) {
             this.emit('error', {
@@ -201,13 +211,13 @@ export class GeoGebraOptimizer extends EventBus {
 
     /**
      * Start optimization using CMA-ES algorithm.
-     * Optimizes selected sliders to minimize distance between points while
+     * Optimizes selected variables to minimize distance between points while
      * applying regularization to keep changes small.
      *
      * @async
      * @param {OptimizeOptions} options - Optimization options
      * @returns {Promise<void>}
-     * @throws {Error} If optimization is already running or no sliders selected
+     * @throws {Error} If optimization is already running or no variables selected
      *
      * @fires GeoGebraOptimizer#optimization:start - When optimization starts
      * @fires GeoGebraOptimizer#optimization:progress - On each generation
@@ -218,9 +228,10 @@ export class GeoGebraOptimizer extends EventBus {
      * @fires GeoGebraOptimizer#log - For informational messages
      *
      * @example
+     * // Constrained optimization with default constraint (Distance(A',A) = 0)
      * await optimizer.optimize({
-     *   selectedSliders: ['AB', 'BC'],
-     *   objectiveParams: { lambda: 0.01 },
+     *   selectedVariables: ['AB', 'BC'],
+     *   defaultTolerance: 1e-4,
      *   solverParams: {
      *     maxiter: 100,
      *     popsize: 10,
@@ -228,11 +239,27 @@ export class GeoGebraOptimizer extends EventBus {
      *     tolfun: 1e-6
      *   }
      * });
+     *
+     * @example
+     * // Constrained optimization with custom constraints
+     * await optimizer.optimize({
+     *   selectedVariables: ['AB', 'BC'],
+     *   constraints: [
+     *     { expr: "Distance(A',A)", op: "=", value: 0, tolerance: 1e-4 },
+     *     { expr: "Distance(A,B)", op: ">", value: 10, tolerance: 0.5 }
+     *   ],
+     *   defaultTolerance: 1e-4,
+     *   solverParams: {
+     *     maxiter: 100,
+     *     popsize: 10
+     *   }
+     * });
      */
     async optimize(options) {
         const {
-            selectedSliders,
-            objectiveParams = { lambda: 0.01 },
+            selectedVariables,
+            constraints,
+            defaultTolerance = 1e-4,
             solverParams = { maxiter: 100, popsize: 10, sigma: 0.5, tolfun: 1e-6, progressStep: 1 }
         } = options;
 
@@ -240,8 +267,17 @@ export class GeoGebraOptimizer extends EventBus {
             throw new Error('Optimization already running');
         }
 
-        if (!selectedSliders || selectedSliders.length === 0) {
-            throw new Error('No sliders selected');
+        if (!selectedVariables || selectedVariables.length === 0) {
+            throw new Error('No variables selected');
+        }
+
+        if (!constraints || constraints.length === 0) {
+            console.warn('No constraints provided. Optimization will run with objective function only.');
+            this.emit('log', {
+                level: 'warning',
+                message: 'No constraints provided. Optimization will run with objective function only.'
+            });
+            constraints = []; // Initialize as empty array to avoid undefined errors
         }
 
         this.optimizationRunning = true;
@@ -252,50 +288,70 @@ export class GeoGebraOptimizer extends EventBus {
         const maxEvaluations = solverParams.maxiter * solverParams.popsize;
         this.progressTracker = new ProgressTracker(maxEvaluations, solverParams.progressStep || 1);
 
-        this.emit('optimization:start', { selectedSliders, objectiveParams, solverParams });
+        this.emit('optimization:start', { selectedVariables, solverParams, constraints, defaultTolerance });
 
         try {
             // Prepare bounds and initial values
             const bounds = { min: [], max: [], initial: [] };
-            const sliderObjects = [];
+            const variableObjects = [];
 
-            selectedSliders.forEach(name => {
-                const slider = this.geogebraManager.getSlider(name);
-                if (slider) {
-                    bounds.min.push(slider.min);
-                    bounds.max.push(slider.max);
-                    bounds.initial.push(slider.value);
-                    sliderObjects.push(slider);
+            selectedVariables.forEach(name => {
+                const variable = this.geogebraManager.getVariable(name);
+                if (variable) {
+                    bounds.min.push(variable.min);
+                    bounds.max.push(variable.max);
+                    bounds.initial.push(variable.value);
+                    variableObjects.push(variable);
                 }
             });
 
-            const { lambda } = objectiveParams;
-
-            // Initialize CMA-ES optimizer
+            // Initialize CMA-ES optimizer with ConstrainedFitnessAL
             const initCode = `
-es = initialize_optimizer(
-    ${JSON.stringify(bounds.initial)},
-    ${JSON.stringify(bounds.min)},
-    ${JSON.stringify(bounds.max)},
-    sigma=${solverParams.sigma},
-    maxiter=${solverParams.maxiter},
-    popsize=${solverParams.popsize},
-    tolfun=${solverParams.tolfun}
-)
-"initialized"
-`;
+            es, cfun = initialize_optimizer(
+                ${JSON.stringify(bounds.initial)},
+                ${JSON.stringify(bounds.min)},
+                ${JSON.stringify(bounds.max)},
+                sigma=${solverParams.sigma},
+                maxiter=${solverParams.maxiter},
+                popsize=${solverParams.popsize},
+                tolfun=${solverParams.tolfun}
+            )
+            "initialized"
+            `;
             await this.pyodideManager.runPython(initCode);
+
             this.emit('log', {
                 message: 'Optimizer initialized successfully',
                 level: 'info',
                 timestamp: new Date()
             });
 
+            // Control GeoGebra rendering based on repaintingMode
+            const repaintingMode = solverParams.repaintingMode || 'auto';
+            if (repaintingMode === 'auto' || repaintingMode === 'never') {
+                this.geogebraManager.setRepaintingActive(false);
+                this.emit('log', {
+                    message: `GeoGebra rendering disabled (mode: ${repaintingMode})`,
+                    level: 'info',
+                    timestamp: new Date()
+                });
+            } else if (repaintingMode === 'always') {
+                this.geogebraManager.setRepaintingActive(true);
+                this.emit('log', {
+                    message: 'GeoGebra rendering always enabled (mode: always)',
+                    level: 'info',
+                    timestamp: new Date()
+                });
+            }
+
             let generation = 0;
             let totalEvaluations = 0;
             let bestFitness = Infinity;
-            let bestDistance = Infinity;
             let bestSolution = null;
+            let bestObjective = Infinity;
+            let bestHardViolation = Infinity;
+            let bestFeasibleSolution = null;
+            let bestFeasibleObjective = Infinity;
 
             const initialValues = [...bounds.initial];
 
@@ -305,54 +361,99 @@ es = initialize_optimizer(
                 const solutionsJson = await this.pyodideManager.runPython(`ask_solutions(es)`);
                 const solutions = JSON.parse(solutionsJson);
 
-                // Evaluate each solution
-                const fitnesses = [];
+                // Prepare batch evaluation data
+                const evaluations = [];
                 for (const solution of solutions) {
-                    // Update sliders
-                    this.updateSliders(solution, selectedSliders);
+                    // Update variables
+                    this.updateVariables(solution, selectedVariables);
                     await new Promise(resolve => setTimeout(resolve, 50));
 
-                    // Calculate fitness
-                    const result = this.calculateFitness(solution, initialValues, lambda, sliderObjects);
-                    fitnesses.push(result.fitness);
+                    // Calculate objective and constraints
+                    const result = this.calculateFitnessWithConstraints(
+                        solution,
+                        initialValues,
+                        variableObjects,
+                        constraints,
+                        defaultTolerance
+                    );
+
+                    evaluations.push({
+                        solution: solution,
+                        objective: result.objective,
+                        alConstraints: result.alConstraints,
+                        movementPenalty: result.movementPenalty,
+                        softConstraintsViolation: result.softConstraintsViolation,
+                        evaluatedConstraints: result.evaluatedConstraints
+                    });
+                }
+
+                // Batch evaluate all solutions in Python (single call!)
+                const batchResultJson = await this.pyodideManager.runPython(
+                    `evaluate_batch(${JSON.stringify(evaluations)})`
+                );
+                const batchResult = JSON.parse(batchResultJson);
+                const { fitnesses, feasibilities, cmaesMetrics } = batchResult;
+
+                // Process results
+                for (let i = 0; i < solutions.length; i++) {
+                    const solution = solutions[i];
+                    const fitness = fitnesses[i];
+                    const feasible = feasibilities[i];
+                    const evalData = evaluations[i];
+
                     totalEvaluations++;
 
                     // Update progress tracker and emit event if threshold crossed
                     const shouldNotify = this.progressTracker.update(totalEvaluations);
                     if (shouldNotify) {
-                        // Calculate current deltas and get slider values
-                        const currentDeltas = this.calculateCurrentDeltas(solution, initialValues, selectedSliders);
-                        const sliderValues = this.geogebraManager.getSliderValues();
+                        // Calculate current deltas and get variable values
+                        const currentDeltas = this.calculateCurrentDeltas(solution, initialValues, selectedVariables);
+                        const variableValues = this.geogebraManager.getVariableValues();
 
                         this.emit('optimization:progress-update', {
                             ...this.progressTracker.getProgress(),
                             deltas: currentDeltas,
-                            sliderValues: sliderValues
+                            variableValues: variableValues
                         });
                     }
 
-                    // Update if better solution
-                    if (result.fitness < bestFitness) {
-                        bestFitness = result.fitness;
-                        bestDistance = result.distance;
+                    // Update if better solution (overall best by fitness)
+                    if (fitness < bestFitness) {
+                        bestFitness = fitness;
                         bestSolution = [...solution];
+                        bestObjective = evalData.objective;
+                        bestHardViolation = cmaesMetrics?.hardViolation ?? 0;
+                    }
+
+                    // Track best feasible solution separately (compare by objective)
+                    if (feasible && evalData.objective < bestFeasibleObjective) {
+                        bestFeasibleObjective = evalData.objective;
+                        bestFeasibleSolution = [...solution];
 
                         // Calculer deltas
-                        const deltas = this.calculateDeltas(solution, initialValues, selectedSliders);
+                        const deltas = this.calculateDeltas(solution, initialValues, selectedVariables);
 
                         const metrics = {
-                            bestDistance,
-                            bestFitness,
-                            regularizationPenalty: result.penalty,
+                            bestObjective: evalData.objective,
+                            bestHardViolation: cmaesMetrics?.hardViolation ?? 0,
+                            bestMovementPenalty: evalData.movementPenalty,
+                            bestSoftViolation: evalData.softConstraintsViolation,
                             totalDelta: deltas.totalDelta,
                             generation,
-                            evaluations: totalEvaluations
+                            evaluations: totalEvaluations,
+                            feasible: true
                         };
 
                         this.emit('optimization:newBest', {
                             solution,
                             metrics,
-                            deltas: deltas.sliderDeltas
+                            deltas: deltas.variableDeltas
+                        });
+
+                        this.emit('log', {
+                            message: `New best feasible solution: objective=${evalData.objective.toFixed(6)} (movement=${evalData.movementPenalty.toFixed(6)}, soft=${evalData.softConstraintsViolation.toFixed(6)})`,
+                            level: 'info',
+                            timestamp: new Date()
                         });
                     }
 
@@ -361,26 +462,34 @@ es = initialize_optimizer(
 
                 if (this.stopRequested) break;
 
-                // Return results to CMA-ES
+                // Return results to CMA-ES and update AL coefficients
                 await this.pyodideManager.runPython(
-                    `tell_results(es, ${JSON.stringify(solutions)}, ${JSON.stringify(fitnesses)})`
+                    `tell_results(es, ${JSON.stringify(solutions)}, ${JSON.stringify(fitnesses)}, cfun)`
                 );
 
                 generation++;
 
-                // Emit progress
-                const currentResult = this.calculateFitness(solutions[0], initialValues, lambda, sliderObjects);
+                // Emit progress (use last evaluation data)
+                const lastEvalData = evaluations[evaluations.length - 1];
+
                 this.emit('optimization:progress', {
                     generation,
                     evaluations: totalEvaluations,
-                    currentSolution: solutions[0],
+                    currentSolution: solutions[solutions.length - 1],
                     metrics: {
-                        currentDistance: currentResult.distance,
-                        bestDistance,
+                        currentObjective: lastEvalData.objective,
+                        currentMovementPenalty: lastEvalData.movementPenalty,
+                        currentSoftViolation: lastEvalData.softConstraintsViolation,
+                        currentConstraintValues: lastEvalData.evaluatedConstraints,
+                        bestObjective: bestObjective,
+                        bestHardViolation: bestHardViolation,
                         bestFitness,
                         generation,
-                        evaluations: totalEvaluations
-                    }
+                        evaluations: totalEvaluations,
+                        // CMA-ES metrics (exact values from last solution)
+                        cmaesMetrics: cmaesMetrics
+                    },
+                    constraints: constraints  // Pass constraints for UI display
                 });
 
                 // Vérifier la convergence
@@ -395,25 +504,49 @@ es = initialize_optimizer(
                 }
             }
 
-            // Appliquer la meilleure solution
-            if (bestSolution) {
-                this.updateSliders(bestSolution, selectedSliders);
-                const finalResult = this.calculateFitness(bestSolution, initialValues, lambda, sliderObjects);
-                const deltas = this.calculateDeltas(bestSolution, initialValues, selectedSliders);
+            // Get best feasible solution from CMA-ES
+            const bestFeasibleJson = await this.pyodideManager.runPython(`get_best_feasible(cfun)`);
+            const bestFeasibleFromCMAES = JSON.parse(bestFeasibleJson);
+
+            // Appliquer la meilleure solution faisable (ou meilleure solution si aucune faisable)
+            const finalSolution = bestFeasibleSolution || bestSolution;
+            if (finalSolution) {
+                this.updateVariables(finalSolution, selectedVariables);
+                const finalResult = this.calculateFitnessWithConstraints(
+                    finalSolution,
+                    initialValues,
+                    variableObjects,
+                    constraints,
+                    defaultTolerance
+                );
+                const deltas = this.calculateDeltas(finalSolution, initialValues, selectedVariables);
 
                 const finalMetrics = {
-                    bestDistance,
-                    bestFitness,
-                    regularizationPenalty: finalResult.penalty,
+                    bestObjective: bestFeasibleSolution ? bestFeasibleObjective : bestObjective,
+                    bestMovementPenalty: finalResult.movementPenalty,
+                    bestSoftViolation: finalResult.softConstraintsViolation,
+                    bestHardViolation: bestHardViolation,
                     totalDelta: deltas.totalDelta,
                     generation,
-                    evaluations: totalEvaluations
+                    evaluations: totalEvaluations,
+                    feasible: bestFeasibleSolution !== null
                 };
 
+                const feasibilityMsg = bestFeasibleSolution
+                    ? `Feasible solution found (objective=${bestFeasibleObjective.toFixed(6)}, hardViolation=${bestHardViolation.toFixed(6)})`
+                    : `No feasible solution (objective=${bestObjective.toFixed(6)}, hardViolation=${bestHardViolation.toFixed(6)})`;
+
+                this.emit('log', {
+                    message: feasibilityMsg,
+                    level: bestFeasibleSolution ? 'info' : 'warn',
+                    timestamp: new Date()
+                });
+
                 this.emit('optimization:complete', {
-                    bestSolution,
+                    bestSolution: finalSolution,
                     finalMetrics,
-                    deltas: deltas.sliderDeltas
+                    deltas: deltas.variableDeltas,
+                    bestFeasibleFromCMAES: bestFeasibleFromCMAES  // Include CMA-ES best feasible
                 });
             }
 
@@ -427,64 +560,240 @@ es = initialize_optimizer(
             });
             throw error;
         } finally {
+            // Re-enable GeoGebra rendering based on repaintingMode
+            const repaintingMode = solverParams.repaintingMode || 'auto';
+            if (repaintingMode === 'auto') {
+                // Auto mode: restore rendering after optimization
+                this.geogebraManager.setRepaintingActive(true);
+            }
+            // For 'always' and 'never': don't change (already in desired state)
+
             this.optimizationRunning = false;
             this.state.isOptimizing = false;
         }
     }
 
     /**
-     * Update sliders with new values
+     * Update variables with new values
      */
-    updateSliders(values, selectedSliders) {
+    updateVariables(values, selectedVariables) {
         const updates = {};
-        selectedSliders.forEach((name, index) => {
+        selectedVariables.forEach((name, index) => {
             updates[name] = values[index];
         });
-        this.geogebraManager.setSliderValues(updates);
+        this.geogebraManager.setVariableValues(updates);
     }
 
     /**
-     * Calculate fitness (distance + regularization)
-     * Note: Hidden sliders are excluded from L2 penalty but still used as optimization variables
+     * Transform user constraints to ConstrainedFitnessAL format (g(x) ≤ 0)
+     *
+     * @param {Constraint[]} constraints - User-defined constraints
+     * @param {number[]} evaluatedValues - Evaluated constraint values
+     * @param {number} defaultTolerance - Default tolerance
+     * @returns {number[]} Array of constraint values for AL (≤ 0 is feasible)
      */
-    calculateFitness(currentValues, initialValues, lambda, sliderObjects = []) {
-        const distance = this.geogebraManager.calculateDistance('A', "A'");
+    transformConstraintsForAL(constraints, evaluatedValues, defaultTolerance) {
+        const alConstraints = [];
 
-        if (!currentValues || !initialValues) {
-            return { fitness: distance, distance, penalty: 0 };
-        }
+        for (let i = 0; i < constraints.length; i++) {
+            const constraint = constraints[i];
+            const g = evaluatedValues[i];  // Evaluated value
+            const tol = constraint.tolerance ?? defaultTolerance;
+            // Note: All constraints are of the form: expression op 0
 
-        // Calculate L2 penalty only on NON-hidden sliders
-        let penalty = 0;
-        for (let i = 0; i < currentValues.length; i++) {
-            // Skip hidden sliders in L2 penalty calculation
-            if (sliderObjects[i] && sliderObjects[i].hidden) {
+            // If constraint is disabled, return a value that always satisfies it
+            // All AL constraints are in g(x) <= 0 format, so -1e10 is always satisfied
+            if (constraint.enabled === false) {
+                switch (constraint.operator) {
+                    case '=':
+                        // Equality constraints generate 2 AL constraints
+                        alConstraints.push(-1e10);
+                        alConstraints.push(-1e10);
+                        break;
+                    default:
+                        // Inequality constraints generate 1 AL constraint
+                        alConstraints.push(-1e10);
+                        break;
+                }
                 continue;
             }
 
-            const diff = currentValues[i] - initialValues[i];
-            penalty += diff * diff;
+            switch (constraint.operator) {
+                case '=':
+                    // g = 0 → [-tol ≤ g ≤ tol]
+                    // Transformed: [g-tol ≤ 0, -g-tol ≤ 0]
+                    alConstraints.push(g - tol);
+                    alConstraints.push(-g - tol);
+                    break;
+
+                case '>':
+                    // g > 0 → -g < 0
+                    alConstraints.push(-g - tol);
+                    break;
+
+                case '>=':
+                    // g >= 0 → -g ≤ 0 (relaxed contraint: g ≥ -tol)
+                    alConstraints.push(-g - tol);
+                    break;
+
+                case '<':
+                    // g < 0 → g < 0 (relaxed contraint: g ≤ tol)
+                    alConstraints.push(g - tol);
+                    break;
+
+                case '<=':
+                    // g <= 0 → g ≤ 0
+                    alConstraints.push(g - tol);
+                    break;
+
+                default:
+                    throw new Error(`Unknown operator: ${constraint.operator}`);
+            }
         }
 
-        const fitness = distance + lambda * penalty;
-
-        return { fitness, distance, penalty };
+        return alConstraints;
     }
 
     /**
-     * Calculate deltas for each slider
+     * Evaluate constraints using GeoGebra API
+     * For now, uses faker for testing until GeoGebra parsing is implemented
+     *
+     * @param {Constraint[]} constraints - Constraints to evaluate
+     * @returns {number[]} Evaluated constraint values
      */
-    calculateDeltas(currentValues, initialValues, selectedSliders) {
-        let totalDelta = 0;
-        const sliderDeltas = {};
+    evaluateConstraints(constraints) {
+        return constraints.map(constraint => {
+            // TODO: Parse and evaluate real GeoGebra expressions
+            // For now, evaluate using GeoGebra API
+            const expr = constraint.expression;
 
-        selectedSliders.forEach((name, index) => {
-            const delta = currentValues[index] - initialValues[index];
-            totalDelta += Math.abs(delta);
-            sliderDeltas[name] = delta;
+            if (!expr) {
+                throw new Error('Constraint has no expression:', constraint);
+            }
+
+            try {
+                // Try to evaluate the expression using GeoGebra API
+                const ggbApi = this.geogebraManager.getAPI();
+                const value = ggbApi.getValue(expr);
+
+                // If getValue works, return the value
+                if (typeof value !== 'number'|| isNaN(value)) {
+                    throw new Error('Cannot evaluate constraint:', constraint);
+                }
+
+                return value;
+            } catch (e) {
+                throw new Error('Cannot evaluate constraint:', constraint, "Error:", e);
+            }
+        });
+    }
+
+    /**
+     * Calculate constraint violation metric for display
+     * @param {number[]} alConstraints - AL-transformed constraints
+     * @returns {number} Mean violation (0 if all satisfied)
+     */
+    calculateConstraintViolation(alConstraints) {
+        if (alConstraints.length === 0) return 0;
+
+        const violations = alConstraints.map(g => Math.max(0, g));
+        return violations.reduce((sum, v) => sum + v, 0) / violations.length;
+    }
+
+    /**
+     * Calculate fitness with constraints
+     *
+     * Returns only what's needed for CMA-ES:
+     * - objective (movement + soft)
+     * - alConstraints (hard, transformed)
+     *
+     * Hard violations are retrieved from CMA-ES (not calculated here)
+     */
+    calculateFitnessWithConstraints(currentValues, initialValues, variableObjects, constraints, defaultTolerance) {
+        // Movement penalty (minimize parameter changes)
+        let movementPenalty = 0;
+        if (currentValues && initialValues) {
+            for (let i = 0; i < currentValues.length; i++) {
+                // Skip hidden parameters
+                if (variableObjects[i]?.hidden) {
+                    continue;
+                }
+
+                const diff = currentValues[i] - initialValues[i];
+                const weight = variableObjects[i]?.weight ?? 1;
+                movementPenalty += weight * diff * diff;
+            }
+        }
+
+        // Separate hard and soft constraints
+        const hardConstraints = constraints.filter(c => c.type === 'hard');
+        const softConstraints = constraints.filter(c => c.type === 'soft');
+
+        // Evaluate all constraints via GeoGebra
+        const evaluatedConstraints = this.evaluateConstraints(constraints);
+
+        // Soft constraints violation
+        let softConstraintsViolation = 0;
+        softConstraints.forEach(constraint => {
+            const idx = constraints.indexOf(constraint);
+            const value = evaluatedConstraints[idx];
+            const weight = constraint.weight ?? 1;
+
+            let penalty = 0;
+            switch (constraint.operator) {
+                case '<':
+                case '<=':
+                    penalty = Math.max(0, value) ** 2;
+                    break;
+                case '>':
+                case '>=':
+                    penalty = Math.max(0, -value) ** 2;
+                    break;
+                case '=':
+                    penalty = value ** 2;
+                    break;
+            }
+            softConstraintsViolation += weight * penalty;
         });
 
-        return { totalDelta, sliderDeltas };
+        // Objective for CMA-ES
+        const objective = movementPenalty + softConstraintsViolation;
+
+        // Transform hard constraints for AL
+        const hardEvaluatedConstraints = hardConstraints.map(hc => {
+            const idx = constraints.indexOf(hc);
+            return idx !== -1 ? evaluatedConstraints[idx] : 0;
+        });
+
+        const alConstraints = this.transformConstraintsForAL(
+            hardConstraints,
+            hardEvaluatedConstraints,
+            defaultTolerance
+        );
+
+        return {
+            objective,                      // Movement + soft
+            movementPenalty,                // Regularization
+            softConstraintsViolation,       // Soft penalties
+            alConstraints,                  // Hard (g ≤ 0 format)
+            evaluatedConstraints            // Raw values
+        };
+    }
+
+    /**
+     * Calculate deltas for each variable
+     */
+    calculateDeltas(currentValues, initialValues, selectedVariables) {
+        let totalDelta = 0;
+        const variableDeltas = {};
+
+        selectedVariables.forEach((name, index) => {
+            const delta = currentValues[index] - initialValues[index];
+            totalDelta += Math.abs(delta);
+            variableDeltas[name] = delta;
+        });
+
+        return { totalDelta, variableDeltas };
     }
 
     /**
@@ -508,23 +817,23 @@ es = initialize_optimizer(
     }
 
     /**
-     * Calculate deltas between current and initial slider values
+     * Calculate deltas between current and initial variable values
      * @param {number[]} currentValues - Current values
      * @param {number[]} initialValues - Initial values
-     * @param {string[]} selectedSliders - Names of selected sliders
-     * @returns {Object} Object with deltas { sliderName: delta, ... }
+     * @param {string[]} selectedVariables - Names of selected variables
+     * @returns {Object} Object with deltas { variableName: delta, ... }
      */
-    calculateCurrentDeltas(currentValues, initialValues, selectedSliders) {
+    calculateCurrentDeltas(currentValues, initialValues, selectedVariables) {
         const deltas = {};
 
-        if (!currentValues || !initialValues || !selectedSliders) {
+        if (!currentValues || !initialValues || !selectedVariables) {
             return deltas;
         }
 
-        for (let i = 0; i < selectedSliders.length; i++) {
-            const sliderName = selectedSliders[i];
+        for (let i = 0; i < selectedVariables.length; i++) {
+            const variableName = selectedVariables[i];
             const delta = currentValues[i] - initialValues[i];
-            deltas[sliderName] = delta;
+            deltas[variableName] = delta;
         }
 
         return deltas;
@@ -550,40 +859,52 @@ es = initialize_optimizer(
     // Getters
 
     /**
-     * Get all available sliders from GeoGebra.
+     * Get all available variables from GeoGebra.
      *
-     * @returns {Array<Object>} Array of slider objects with name, min, max, value, etc.
+     * @returns {Array<Object>} Array of variable objects with name, min, max, value, etc.
      * @example
-     * const sliders = optimizer.getSliders();
-     * console.log(sliders[0]); // { name: 'AB', min: 0, max: 10, value: 5, ... }
+     * const variables = optimizer.getVariables();
+     * console.log(variables[0]); // { name: 'AB', min: 0, max: 10, value: 5, ... }
      */
-    getSliders() {
-        return this.geogebraManager.getSliders();
+    getVariables() {
+        return this.geogebraManager.getVariables();
     }
 
     /**
-     * Get a specific slider by name.
+     * Get a specific variable by name.
      *
-     * @param {string} name - Slider name
-     * @returns {Object|undefined} Slider object or undefined if not found
+     * @param {string} name - Variable name
+     * @returns {Object|undefined} Variable object or undefined if not found
      * @example
-     * const slider = optimizer.getSlider('AB');
-     * if (slider) console.log(slider.value);
+     * const variable = optimizer.getVariable('AB');
+     * if (variable) console.log(variable.value);
      */
-    getSlider(name) {
-        return this.geogebraManager.getSlider(name);
+    getVariable(name) {
+        return this.geogebraManager.getVariable(name);
     }
 
     /**
-     * Get current values of all sliders.
+     * Get current values of all variables.
      *
-     * @returns {Object<string, number>} Object mapping slider names to values
+     * @returns {Object<string, number>} Object mapping variable names to values
      * @example
-     * const values = optimizer.getSliderValues();
+     * const values = optimizer.getVariableValues();
      * console.log(values); // { AB: 5, BC: 3.2, CD: 7.8 }
      */
-    getSliderValues() {
-        return this.geogebraManager.getSliderValues();
+    getVariableValues() {
+        return this.geogebraManager.getVariableValues();
+    }
+
+    /**
+     * Get parsed constraints from GeoGebra XML.
+     *
+     * @returns {Array<{type: string, operator: string, label: string, expression: string}>} Array of constraints
+     * @example
+     * const constraints = optimizer.getConstraints();
+     * console.log(constraints); // [{ type: 'hard', operator: '=', label: 'A=A\'', expression: 'Distance[A, A\']' }]
+     */
+    getConstraints() {
+        return this.geogebraManager.getConstraints();
     }
 
     /**
