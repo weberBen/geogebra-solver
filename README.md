@@ -6,10 +6,6 @@
 
 Interactive web application combining GeoGebra and CMA-ES optimization (Covariance Matrix Adaptation Evolution Strategy) via PyOdide (Python in WebAssembly).
 
-## TODO
-
-- [] Implement ConstrainedFitnessAL with hard constraints (distance A-A' as constraint, L2 as objective)
-
 ## Project Architecture
 
 This project is organized as a **monorepo** with npm workspaces:
