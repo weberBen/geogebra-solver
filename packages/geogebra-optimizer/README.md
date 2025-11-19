@@ -253,129 +253,258 @@ Located in the "Basic" tab of object properties under "Show Object", this checkb
 
 The optimizer uses **Augmented Lagrangian** method to handle constraints. Constraints define conditions that the optimized solution must satisfy.
 
-### Constraint Types
+### Creating Constraints in GeoGebra
 
-#### Hard Constraints (Equality: `op: "="`)
-Strict requirements that **must** be satisfied (e.g., `Distance(A', A) = 0`).
-- Enforced with high penalty
-- Used for geometric requirements (coincidence, perpendicularity, etc.)
+Constraints are defined using **text objects** in GeoGebra with a specific format.
 
-#### Soft Constraints (Inequality: `op: ">"`, `op: "<"`)
-Preferences that should be satisfied when possible but can be violated.
-- Lower penalty, can be weighted
-- Used for design preferences (minimum lengths, angle ranges, etc.)
+#### Step 1: Create a Text Object
 
-### Constraint Format
+1. In GeoGebra: **Insert → Text** (or click the text tool)
+2. In the text editor, type your constraint using the format below
+3. Click OK to create the text object
 
-```javascript
-{
-    expr: string,      // GeoGebra expression to evaluate
-    op: "=" | ">" | "<",  // Operator
-    value: number,     // Target value
-    tolerance: number, // Tolerance for "=" constraints (default: 1e-4)
-    weight: number     // Weight for soft constraints (default: 1)
-}
+#### Step 2: Constraint Format
+
+Each text object contains ONE constraint with this format:
+
+```
+"constraint(type, operator[, label]):" expression
 ```
 
-### Constraint Examples
+**Parameters:**
+- **type**: `hard` or `soft` (case insensitive)
+  - `hard`: Enforced with Augmented Lagrangian (must be satisfied)
+  - `soft`: Enforced with L2 penalty (should be satisfied, weighted)
+- **operator**: `=`, `==`, `<`, `<=`, `>`, `>=`
+- **label**: (optional) Constraint identifier for debugging
+- **expression**: GeoGebra expression in **normalized form** `g(x) op 0`
 
-#### Example 1: Point Coincidence
-```javascript
-{
-    expr: "Distance(A', A)",  // Distance between A' and A
-    op: "=",                   // Must equal
-    value: 0,                  // Zero
-    tolerance: 1e-4            // Within 0.0001 units
-}
+**Note:** Constraint tolerance is configured **globally** (not per-constraint) via the `defaultTolerance` parameter when calling the optimizer. Default value: `1e-4`.
+
+#### Step 3: Expression Format (IMPORTANT!)
+
+**All expressions must be in normalized form `g(x) op 0`:**
+
+To convert intuitive constraints to normalized form:
+
+| Intuitive Constraint | Normalized Form | GeoGebra Text |
+|---------------------|-----------------|---------------|
+| `AB < 100` | `AB - 100 < 0` | `"constraint(soft, <): AB - 100"` |
+| `AB > 50` | `AB - 50 > 0` | `"constraint(soft, >): AB - 50"` |
+| `AB = 75` | `AB - 75 = 0` | `"constraint(hard, =): AB - 75"` |
+| `Distance(A',A) = 0` | `Distance(A',A) = 0` | `"constraint(hard, =):" + (Distance(A', A)) + ""` |
+
+**Two syntaxes:**
+
+1. **Static expression** (simple text):
+   ```
+   "constraint(soft, <): AB - 100"
+   ```
+
+2. **Dynamic expression** (evaluated by GeoGebra):
+   ```
+   "constraint(hard, =):" + (Distance(A', A)) + ""
+   ```
+   Use this when the expression needs to be dynamically evaluated (e.g., Distance, Angle, etc.)
+
+#### Examples
+
+**Example 1: Point coincidence (hard)**
 ```
-**Interpretation**: Point A' must coincide with point A (hard constraint).
-
-#### Example 2: Minimum Length
-```javascript
-{
-    expr: "AB",        // Length variable
-    op: ">",           // Must be greater than
-    value: 5,          // 5 units
-    weight: 2          // Higher priority (default: 1)
-}
+"constraint(hard, =, A=A'):" + (Distance(A', A)) + ""
 ```
-**Interpretation**: Length AB should be at least 5 units (soft constraint, weighted 2x).
+→ Point A must coincide with A'
 
-#### Example 3: Angle Range
-```javascript
-{
-    expr: "angle",
-    op: ">",
-    value: 30
-},
-{
-    expr: "angle",
-    op: "<",
-    value: 150
-}
+**Example 2: Minimum length (soft)**
 ```
-**Interpretation**: Angle should be between 30° and 150°.
-
-#### Example 4: Multiple Points Coincidence
-```javascript
-constraints: [
-    { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 },
-    { expr: "Distance(B', B)", op: "=", value: 0, tolerance: 1e-4 },
-    { expr: "Distance(C', C)", op: "=", value: 0, tolerance: 1e-4 }
-]
+"constraint(soft, >): AB - 50"
 ```
-**Use case**: Fitting a triangle A'B'C' onto target points A, B, C.
+→ AB should be greater than 50 (penalty when violated)
 
-### Complete Optimization Example
-
-```javascript
-// Optimize a quadrilateral ABCD to match target shape A'B'C'D'
-// while maintaining minimum side lengths
-await optimizer.optimize({
-    selectedVariables: ['AB', 'BC', 'CD', 'angleABC', 'angleBCD'],
-
-    constraints: [
-        // Hard constraints: vertices must coincide
-        { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 },
-        { expr: "Distance(B', B)", op: "=", value: 0, tolerance: 1e-4 },
-        { expr: "Distance(C', C)", op: "=", value: 0, tolerance: 1e-4 },
-        { expr: "Distance(D', D)", op: "=", value: 0, tolerance: 1e-4 },
-
-        // Soft constraints: minimum side lengths
-        { expr: "AB", op: ">", value: 100, weight: 1 },
-        { expr: "BC", op: ">", value: 100, weight: 1 },
-        { expr: "CD", op: ">", value: 100, weight: 1 },
-
-        // Soft constraint: angle range
-        { expr: "angleABC", op: ">", value: 90, weight: 0.5 },
-        { expr: "angleABC", op: "<", value: 180, weight: 0.5 }
-    ],
-
-    defaultTolerance: 1e-4,
-
-    solverParams: {
-        maxiter: 200,
-        popsize: 15,
-        sigma: 0.5,
-        tolfun: 1e-6
-    }
-});
+**Example 3: Maximum angle (soft)**
 ```
+"constraint(soft, <): angle - 150"
+```
+→ Angle should be less than 150°
+
+**Example 4: Length range (soft, multiple constraints)**
+Create two text objects:
+```
+"constraint(soft, >): AB - 30"
+"constraint(soft, <): AB - 100"
+```
+→ AB should be between 30 and 100
+
+**GeoGebra Expression Syntax:**
+- Native functions: `Distance(A, B)`, `Angle(A, B, C)`, `Area(poly1)`
+- Variables: `AB`, `angle`, `length`
+- Arithmetic: `AB + BC`, `angle * 2`, `AB - 100`
+- Object properties: `x(A)`, `y(B)`, `Radius(c1)`
 
 ### How Constraints Work Internally
 
-1. **Augmented Lagrangian**: Combines objective function with constraint penalties
-2. **Penalty Updates**: Automatically increases penalties for violated constraints
-3. **Feasibility Tracking**: Monitors constraint violations and reports in metrics
-4. **Adaptive Weighting**: Balances hard constraints (equality) vs soft constraints (inequality)
+Since constraints are written in normalized form `g(x) op 0`, the processing is straightforward:
+
+#### Constraint Conversion to Standard Form `g(x) ≤ 0`
+
+All constraints are converted to the inequality form `g(x) ≤ 0`:
+
+| Operator | Input (normalized) | Standard Form `g(x) ≤ 0` |
+|----------|-------------------|-------------------------|
+| `=` | `g(x) = 0` | Two inequalities: `g(x) - tol ≤ 0` AND `-g(x) - tol ≤ 0` |
+| `<` | `g(x) < 0` | `g(x) - tol ≤ 0` (relaxed with tolerance) |
+| `<=` | `g(x) ≤ 0` | `g(x) - tol ≤ 0` |
+| `>` | `g(x) > 0` | `-g(x) - tol ≤ 0` |
+| `>=` | `g(x) ≥ 0` | `-g(x) - tol ≤ 0` |
+
+**Note:** Tolerance (`tol`) is configured **globally** for all constraints. Default: `1e-4`
+
+**Example conversions:**
+
+*GeoGebra constraint → Standard form `g(x) ≤ 0`:*
+
+```
+"constraint(hard, =):" + (Distance(A', A)) + ""
+→ g(x) = Distance(A', A)
+→ Two inequalities: Distance(A', A) - 1e-4 ≤ 0  AND  -Distance(A', A) - 1e-4 ≤ 0
+
+"constraint(soft, >): AB - 100"
+→ g(x) = AB - 100
+→ -g(x) - tol ≤ 0  →  -(AB - 100) - 1e-4 ≤ 0  →  100 - AB - 1e-4 ≤ 0
+
+"constraint(soft, <): angle - 150"
+→ g(x) = angle - 150
+→ g(x) - tol ≤ 0  →  angle - 150 - 1e-4 ≤ 0
+```
+
+#### Hard Constraints (Augmented Lagrangian)
+
+Hard constraints (equality `"="`) use the **Augmented Lagrangian** method:
+
+```
+L(x, λ, μ) = f(x) + λ·g(x) + (μ/2)·max(0, g(x))²
+```
+
+Where:
+- `f(x)`: Base objective (currently 0, only constraints matter)
+- `g(x)`: Constraint violation (`≤ 0` means satisfied)
+- `λ`: Lagrange multiplier (updated adaptively)
+- `μ`: Penalty factor (increased when constraints violated)
+
+**Penalty update rule:**
+```python
+if constraint_violated:
+    λ_new = λ + μ * max(0, g(x))  # Increase Lagrange multiplier
+    μ_new = μ * 1.5                # Increase penalty factor
+```
+
+**Characteristics:**
+- Strong enforcement: penalty grows exponentially if violated
+- Converges to exact constraint satisfaction
+- Used for geometric requirements (coincidence, perpendicularity)
+
+#### Soft Constraints (Weighted L2 Penalty)
+
+Soft constraints use a **quadratic penalty** that depends on the operator:
+
+**For `<` and `<=` operators** (want `g(x) < 0`):
+```
+penalty = weight * max(0, g(x))²
+```
+Penalizes when `g(x) > 0` (constraint violated)
+
+**For `>` and `>=` operators** (want `g(x) > 0`):
+```
+penalty = weight * max(0, -g(x))²
+```
+Penalizes when `g(x) < 0` (constraint violated)
+
+**For `=` operator** (want `g(x) = 0`):
+```
+penalty = weight * g(x)²
+```
+Penalizes any deviation from 0
+
+**Examples:**
+
+1. **Minimum length**: `"constraint(soft, >): AB - 100"` with weight 2
+   - `g(x) = AB - 100`
+   - Penalty = `2 * max(0, -(AB - 100))²` = `2 * max(0, 100 - AB)²`
+   - If AB = 80:  penalty = `2 * max(0, 20)²` = **800**
+   - If AB = 120: penalty = `2 * max(0, -20)²` = **0** (satisfied)
+
+2. **Maximum angle**: `"constraint(soft, <): angle - 150"`
+   - `g(x) = angle - 150`
+   - Penalty = `max(0, angle - 150)²`
+   - If angle = 160: penalty = `max(0, 10)²` = **100** (violated)
+   - If angle = 140: penalty = `max(0, -10)²` = **0** (satisfied)
+
+**Total soft penalty:**
+```
+soft_penalty = Σ (weight_i * penalty_i)
+```
+
+**Characteristics:**
+- Gentle enforcement: can be violated if beneficial
+- Higher weights = higher priority
+- Used for design preferences (minimum lengths, angle ranges)
+
+#### Complete Objective Function
+
+The optimizer minimizes a combination of movement penalty, soft constraints, and hard constraints:
+
+```
+F(x) = movement_penalty + soft_penalty + hard_AL_penalty
+```
+
+**1. Movement Penalty** (minimize parameter changes):
+```
+movement_penalty = Σ(weight_i * (x_i - x_i_initial)²)
+```
+Encourages solutions close to initial configuration.
+
+**2. Soft Constraint Penalty:**
+```
+soft_penalty = Σ soft_constraints (weight_i * penalty_i)
+```
+Where `penalty_i` depends on operator (see formulas above).
+
+**3. Hard Constraint Penalty (Augmented Lagrangian):**
+```
+hard_AL_penalty = Σ hard_constraints (λ_j·g_j(x) + (μ_j/2)·max(0, g_j(x))²)
+```
+Adaptive penalty enforces strict satisfaction.
+
+**Optimization process:**
+1. CMA-ES minimizes `F(x) = movement + soft + hard_AL`
+2. After each generation, update `λ` and `μ` for violated hard constraints
+3. Report metrics: `bestObjective` (movement + soft), `bestHardViolation`
+4. Converge when all hard constraints satisfied and objective minimized
 
 ### Constraint Tips
 
-- **Tolerance**: Use `1e-4` to `1e-6` for geometric precision
-- **Weights**: Higher weights (2-5) prioritize certain soft constraints
-- **Redundancy**: Avoid redundant constraints (e.g., `AB > 5` and `AB > 10`)
+- **Tolerance (global)**: Set `defaultTolerance` when calling `optimize()`. Use `1e-4` to `1e-6` for geometric precision. This tolerance applies to ALL constraints.
+- **Weights (soft only)**: Higher weights (2-5) prioritize certain soft constraints. Not applicable to hard constraints.
+- **Redundancy**: Avoid redundant constraints (e.g., `AB - 5 > 0` and `AB - 10 > 0`)
 - **Feasibility**: Ensure constraints don't contradict each other
 - **Start Simple**: Begin with hard constraints only, then add soft constraints
+
+### Example: Setting Global Tolerance
+
+When using the optimizer via JavaScript API, configure tolerance globally:
+
+```javascript
+await optimizer.optimize({
+    selectedVariables: ['AB', 'BC'],
+    constraints: [
+        // Constraints from GeoGebra text objects
+    ],
+    defaultTolerance: 1e-4,  // ← Global tolerance for ALL constraints
+    solverParams: { maxiter: 100 }
+});
+```
+
+The UI handles this automatically with the default value `1e-4`.
 
 ## Python Integration
 
