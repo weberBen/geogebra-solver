@@ -23,7 +23,12 @@
     "maxiter": "Itérations Max",
     "popsize": "Taille Population",
     "sigma": "Pas (σ)",
-    "tolfun": "Tolérance"
+    "tolfun": "Tolérance",
+    "repaintingMode": "Mode de Rendu",
+    "repaintingModeDescription": "Contrôle le rendu GeoGebra pendant l'optimisation",
+    "repaintingModeAuto": "Auto (désactivé pendant, activé après)",
+    "repaintingModeAlways": "Toujours (voir la progression en direct)",
+    "repaintingModeNever": "Jamais (performance maximale)"
   },
   "objectiveParams": {
     "title": "Paramètres de l'Objectif",
@@ -34,10 +39,17 @@
     "title": "Métriques",
     "bestObjective": "Meilleur Objectif",
     "currentObjective": "Objectif Actuel",
-    "bestConstraints": "Meilleures Contraintes",
-    "currentConstraints": "Contraintes Actuelles",
+    "bestHardViolation": "Meilleure Violation Stricte",
+    "currentMetrics": "Métriques Actuelles",
+    "movementPenalty": "Pénalité de Mouvement",
+    "softViolation": "Violation Souple",
     "generation": "Génération",
-    "evaluations": "Évaluations"
+    "evaluations": "Évaluations",
+    "cmaesMetrics": "Métriques CMA-ES",
+    "alPenalty": "Pénalité AL",
+    "hardViolation": "Violation Stricte",
+    "isFeasible": "Faisable",
+    "mu": "Facteur de Pénalité (μ)"
   },
   "constraintsPanel": {
     "title": "Contraintes",

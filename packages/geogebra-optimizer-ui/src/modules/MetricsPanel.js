@@ -26,11 +26,13 @@ export class MetricsPanel extends BaseModule {
 
         this.state = {
             currentObjective: null,
+            currentMovementPenalty: null,
+            currentSoftViolation: null,
             bestObjective: null,
-            currentConstraintsViolation: null,
-            bestConstraintsViolation: null,
+            bestHardViolation: null,
             generation: 0,
-            evaluations: 0
+            evaluations: 0,
+            cmaesMetrics: null  // CMA-ES exact metrics
         };
     }
 
@@ -38,18 +40,21 @@ export class MetricsPanel extends BaseModule {
      * Update metrics values.
      *
      * @param {Object} metrics - Metrics to update
-     * @param {number} [metrics.currentObjective] - Current L2 objective value
-     * @param {number} [metrics.bestObjective] - Best L2 objective found
-     * @param {number} [metrics.currentConstraintsViolation] - Current constraints violation
-     * @param {number} [metrics.bestConstraintsViolation] - Best constraints violation
+     * @param {number} [metrics.currentObjective] - Current objective value (movement + soft)
+     * @param {number} [metrics.currentMovementPenalty] - Current movement penalty
+     * @param {number} [metrics.currentSoftViolation] - Current soft constraints violation
+     * @param {number} [metrics.bestObjective] - Best objective found
+     * @param {number} [metrics.bestHardViolation] - Best hard constraints violation
      * @param {number} [metrics.generation] - Current generation
      * @param {number} [metrics.evaluations] - Total evaluations
+     * @param {Object} [metrics.cmaesMetrics] - CMA-ES exact metrics
      * @example
      * metricsPanel.updateMetrics({
      *   currentObjective: 1.234,
-     *   bestConstraintsViolation: 0.0001,
+     *   bestHardViolation: 0.0001,
      *   generation: 50,
-     *   evaluations: 500
+     *   evaluations: 500,
+     *   cmaesMetrics: { lambda: [...], mu: 1.0, alPenalty: 0.5 }
      * });
      */
     updateMetrics(metrics) {
@@ -64,11 +69,13 @@ export class MetricsPanel extends BaseModule {
     reset() {
         this.setState({
             currentObjective: null,
+            currentMovementPenalty: null,
+            currentSoftViolation: null,
             bestObjective: null,
-            currentConstraintsViolation: null,
-            bestConstraintsViolation: null,
+            bestHardViolation: null,
             generation: 0,
-            evaluations: 0
+            evaluations: 0,
+            cmaesMetrics: null
         });
     }
 
@@ -79,11 +86,13 @@ export class MetricsPanel extends BaseModule {
         const t = this.t.bind(this);
         const {
             currentObjective,
+            currentMovementPenalty,
+            currentSoftViolation,
             bestObjective,
-            currentConstraintsViolation,
-            bestConstraintsViolation,
+            bestHardViolation,
             generation,
-            evaluations
+            evaluations,
+            cmaesMetrics
         } = this.state;
 
         const formatValue = (value, precision = 6) => {
@@ -91,6 +100,29 @@ export class MetricsPanel extends BaseModule {
                 ? value.toFixed(precision)
                 : '-';
         };
+
+        // CMA-ES metrics section (if available)
+        const cmaesSection = cmaesMetrics ? `
+            <div class="metrics-panel__group">
+                <div class="metrics-panel__group-title">${t('metricsPanel.cmaesMetrics')}</div>
+                <div class="metrics-panel__item">
+                    <div class="metrics-panel__label">${t('metricsPanel.alPenalty')}</div>
+                    <div class="metrics-panel__value">${formatValue(cmaesMetrics.alPenalty)}</div>
+                </div>
+                <div class="metrics-panel__item">
+                    <div class="metrics-panel__label">${t('metricsPanel.hardViolation')}</div>
+                    <div class="metrics-panel__value">${formatValue(cmaesMetrics.hardViolation)}</div>
+                </div>
+                <div class="metrics-panel__item">
+                    <div class="metrics-panel__label">${t('metricsPanel.isFeasible')}</div>
+                    <div class="metrics-panel__value">${cmaesMetrics.isFeasible ? '✓' : '✗'}</div>
+                </div>
+                <div class="metrics-panel__item">
+                    <div class="metrics-panel__label">${t('metricsPanel.mu')}</div>
+                    <div class="metrics-panel__value">${formatValue(cmaesMetrics.mu, 2)}</div>
+                </div>
+            </div>
+        ` : '';
 
         this.innerHTML = `
             <div class="metrics-panel">
@@ -107,13 +139,14 @@ export class MetricsPanel extends BaseModule {
                                 </div>
                             </div>
                             <div class="metrics-panel__item">
-                                <div class="metrics-panel__label">${t('metricsPanel.bestConstraints')}</div>
+                                <div class="metrics-panel__label">${t('metricsPanel.bestHardViolation')}</div>
                                 <div class="metrics-panel__value metrics-panel__value--primary">
-                                    ${formatValue(bestConstraintsViolation)}
+                                    ${formatValue(bestHardViolation)}
                                 </div>
                             </div>
                         </div>
                         <div class="metrics-panel__group">
+                            <div class="metrics-panel__group-title">${t('metricsPanel.currentMetrics')}</div>
                             <div class="metrics-panel__item">
                                 <div class="metrics-panel__label">${t('metricsPanel.currentObjective')}</div>
                                 <div class="metrics-panel__value">
@@ -121,12 +154,19 @@ export class MetricsPanel extends BaseModule {
                                 </div>
                             </div>
                             <div class="metrics-panel__item">
-                                <div class="metrics-panel__label">${t('metricsPanel.currentConstraints')}</div>
+                                <div class="metrics-panel__label">${t('metricsPanel.movementPenalty')}</div>
                                 <div class="metrics-panel__value">
-                                    ${formatValue(currentConstraintsViolation)}
+                                    ${formatValue(currentMovementPenalty)}
+                                </div>
+                            </div>
+                            <div class="metrics-panel__item">
+                                <div class="metrics-panel__label">${t('metricsPanel.softViolation')}</div>
+                                <div class="metrics-panel__value">
+                                    ${formatValue(currentSoftViolation)}
                                 </div>
                             </div>
                         </div>
+                        ${cmaesSection}
                     </div>
                     <div class="metrics-panel__grid">
                         <div class="metrics-panel__item">

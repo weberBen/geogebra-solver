@@ -142,3 +142,104 @@ def check_convergence(es):
         Dictionary of stopping criteria (empty if not converged)
     """
     return str(es.stop())
+
+
+def get_cmaes_metrics(cfun, last_solution):
+    """
+    Get EXACT metrics from ConstrainedFitnessAL (no approximation)
+
+    Args:
+        cfun: ConstrainedFitnessAL instance
+        last_solution: Last evaluated solution
+
+    Returns:
+        JSON with exact CMA-ES metrics
+    """
+    if not hasattr(cfun, 'G') or len(cfun.G) == 0:
+        return json.dumps(None)
+
+    # Last evaluated constraints (raw g(x) values)
+    last_constraints = cfun.G[-1]
+
+    # EXACT: True AL fitness
+    true_al_fitness = cfun(last_solution)
+
+    # EXACT: AL penalty = fitness_AL - objective
+    al_penalty = true_al_fitness - _current_objective
+
+    # EXACT: Violations (max(0, g))
+    violations = [max(0, g) for g in last_constraints]
+    hard_violation = max(violations) if violations else 0
+    mean_violation = sum(violations) / len(violations) if violations else 0
+
+    # EXACT: Feasibility
+    is_feas = all(g <= 0 for g in last_constraints)
+
+    # EXACT: Lagrange multipliers
+    lambda_vals = list(cfun.lambda_) if hasattr(cfun, 'lambda_') else []
+
+    # EXACT: Penalty factor
+    mu_val = float(cfun.mu) if hasattr(cfun, 'mu') else 1.0
+
+    return json.dumps({
+        'lambda': lambda_vals,
+        'mu': mu_val,
+        'alFitness': float(true_al_fitness),
+        'alPenalty': float(al_penalty),
+        'hardViolation': float(hard_violation),
+        'meanViolation': float(mean_violation),
+        'isFeasible': is_feas,
+        'constraints': list(last_constraints)
+    })
+
+
+def evaluate_batch(evaluations):
+    """
+    Evaluate a batch of solutions with exact CMA-ES metrics
+
+    Args:
+        evaluations: List of {
+            'solution': [x1, x2, ...],
+            'objective': float,
+            'alConstraints': [g1, g2, ...]
+        }
+
+    Returns:
+        JSON with {
+            'fitnesses': [...],
+            'feasibilities': [...],
+            'cmaesMetrics': {...}  # Exact metrics from last eval
+        }
+    """
+    global _current_objective, _current_constraints
+
+    fitnesses = []
+    feasibilities = []
+    last_solution = None
+
+    for eval_data in evaluations:
+        solution = eval_data['solution']
+
+        # Update global variables
+        _current_objective = eval_data['objective']
+        _current_constraints = eval_data['alConstraints']
+
+        # Evaluate with ConstrainedFitnessAL
+        fitness = cfun(solution)
+        feasible = is_feasible(cfun)
+
+        fitnesses.append(float(fitness))
+        feasibilities.append(feasible)
+        last_solution = solution
+
+    # Get EXACT metrics from last eval
+    cmaes_metrics = None
+    if last_solution is not None:
+        metrics_json = get_cmaes_metrics(cfun, last_solution)
+        cmaes_metrics = json.loads(metrics_json) if metrics_json else None
+
+    return json.dumps({
+        'fitnesses': fitnesses,
+        'feasibilities': feasibilities,
+        'cmaesMetrics': cmaes_metrics
+    })

@@ -23,7 +23,12 @@
     "maxiter": "Max Iterations",
     "popsize": "Population Size",
     "sigma": "Step Size (σ)",
-    "tolfun": "Tolerance"
+    "tolfun": "Tolerance",
+    "repaintingMode": "Rendering Mode",
+    "repaintingModeDescription": "Control GeoGebra rendering during optimization",
+    "repaintingModeAuto": "Auto (disable during, enable after)",
+    "repaintingModeAlways": "Always (see live progress)",
+    "repaintingModeNever": "Never (maximum performance)"
   },
   "objectiveParams": {
     "title": "Objective Parameters",
@@ -34,10 +39,17 @@
     "title": "Metrics",
     "bestObjective": "Best Objective",
     "currentObjective": "Current Objective",
-    "bestConstraints": "Best Constraints",
-    "currentConstraints": "Current Constraints",
+    "bestHardViolation": "Best Hard Violation",
+    "currentMetrics": "Current Metrics",
+    "movementPenalty": "Movement Penalty",
+    "softViolation": "Soft Violation",
     "generation": "Generation",
-    "evaluations": "Evaluations"
+    "evaluations": "Evaluations",
+    "cmaesMetrics": "CMA-ES Metrics",
+    "alPenalty": "AL Penalty",
+    "hardViolation": "Hard Violation",
+    "isFeasible": "Feasible",
+    "mu": "Penalty Factor (μ)"
   },
   "constraintsPanel": {
     "title": "Constraints",

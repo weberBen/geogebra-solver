@@ -319,15 +319,32 @@ export class GeoGebraOptimizer extends EventBus {
                 timestamp: new Date()
             });
 
+            // Control GeoGebra rendering based on repaintingMode
+            const repaintingMode = solverParams.repaintingMode || 'auto';
+            if (repaintingMode === 'auto' || repaintingMode === 'never') {
+                this.geogebraManager.setRepaintingActive(false);
+                this.emit('log', {
+                    message: `GeoGebra rendering disabled (mode: ${repaintingMode})`,
+                    level: 'info',
+                    timestamp: new Date()
+                });
+            } else if (repaintingMode === 'always') {
+                this.geogebraManager.setRepaintingActive(true);
+                this.emit('log', {
+                    message: 'GeoGebra rendering always enabled (mode: always)',
+                    level: 'info',
+                    timestamp: new Date()
+                });
+            }
+
             let generation = 0;
             let totalEvaluations = 0;
             let bestFitness = Infinity;
-            let bestDistance = Infinity;
             let bestSolution = null;
             let bestObjective = Infinity;
-            let bestConstraintsViolation = Infinity;
+            let bestHardViolation = Infinity;
             let bestFeasibleSolution = null;
-            let bestFeasibleDistance = Infinity;
+            let bestFeasibleObjective = Infinity;
 
             const initialValues = [...bounds.initial];
 
@@ -337,14 +354,14 @@ export class GeoGebraOptimizer extends EventBus {
                 const solutionsJson = await this.pyodideManager.runPython(`ask_solutions(es)`);
                 const solutions = JSON.parse(solutionsJson);
 
-                // Evaluate each solution
-                const fitnesses = [];
+                // Prepare batch evaluation data
+                const evaluations = [];
                 for (const solution of solutions) {
                     // Update sliders
                     this.updateSliders(solution, selectedSliders);
                     await new Promise(resolve => setTimeout(resolve, 50));
 
-                    // Calculate objective (L2 penalty) and constraints
+                    // Calculate objective and constraints
                     const result = this.calculateFitnessWithConstraints(
                         solution,
                         initialValues,
@@ -353,14 +370,30 @@ export class GeoGebraOptimizer extends EventBus {
                         defaultTolerance
                     );
 
-                    // Evaluate augmented Lagrangian fitness in Python
-                    const fitnessAL = await this.pyodideManager.runPython(
-                        `_current_objective = ${result.objective}; _current_constraints = ${JSON.stringify(result.alConstraints)}; cfun(${JSON.stringify(solution)})`
-                    );
-                    const fitness = parseFloat(fitnessAL);
-                    result.fitness = fitness;
+                    evaluations.push({
+                        solution: solution,
+                        objective: result.objective,
+                        alConstraints: result.alConstraints,
+                        movementPenalty: result.movementPenalty,
+                        softConstraintsViolation: result.softConstraintsViolation,
+                        evaluatedConstraints: result.evaluatedConstraints
+                    });
+                }
 
-                    fitnesses.push(fitness);
+                // Batch evaluate all solutions in Python (single call!)
+                const batchResultJson = await this.pyodideManager.runPython(
+                    `evaluate_batch(${JSON.stringify(evaluations)})`
+                );
+                const batchResult = JSON.parse(batchResultJson);
+                const { fitnesses, feasibilities, cmaesMetrics } = batchResult;
+
+                // Process results
+                for (let i = 0; i < solutions.length; i++) {
+                    const solution = solutions[i];
+                    const fitness = fitnesses[i];
+                    const feasible = feasibilities[i];
+                    const evalData = evaluations[i];
+
                     totalEvaluations++;
 
                     // Update progress tracker and emit event if threshold crossed
@@ -377,31 +410,27 @@ export class GeoGebraOptimizer extends EventBus {
                         });
                     }
 
-                    // Check if solution is feasible
-                    const isFeasible = await this.pyodideManager.runPython(`is_feasible(cfun)`);
-                    const feasible = isFeasible === 'True';
-
-                    // Update if better solution
-                    if (result.fitness < bestFitness) {
-                        bestFitness = result.fitness;
-                        bestDistance = result.distance;
+                    // Update if better solution (overall best by fitness)
+                    if (fitness < bestFitness) {
+                        bestFitness = fitness;
                         bestSolution = [...solution];
-                        bestObjective = result.objective;
-                        bestConstraintsViolation = result.constraintViolation;
+                        bestObjective = evalData.objective;
+                        bestHardViolation = cmaesMetrics?.hardViolation ?? 0;
                     }
 
-                    // Track best feasible solution separately
-                    if (feasible && result.distance < bestFeasibleDistance) {
-                        bestFeasibleDistance = result.distance;
+                    // Track best feasible solution separately (compare by objective)
+                    if (feasible && evalData.objective < bestFeasibleObjective) {
+                        bestFeasibleObjective = evalData.objective;
                         bestFeasibleSolution = [...solution];
 
                         // Calculer deltas
                         const deltas = this.calculateDeltas(solution, initialValues, selectedSliders);
 
                         const metrics = {
-                            bestObjective: result.objective,          // L2 objective
-                            bestConstraintsViolation: result.constraintViolation,
-                            bestDistance: bestFeasibleDistance,       // Legacy
+                            bestObjective: evalData.objective,
+                            bestHardViolation: cmaesMetrics?.hardViolation ?? 0,
+                            bestMovementPenalty: evalData.movementPenalty,
+                            bestSoftViolation: evalData.softConstraintsViolation,
                             totalDelta: deltas.totalDelta,
                             generation,
                             evaluations: totalEvaluations,
@@ -415,7 +444,7 @@ export class GeoGebraOptimizer extends EventBus {
                         });
 
                         this.emit('log', {
-                            message: `New best feasible solution: distance=${bestFeasibleDistance.toFixed(6)}, L2=${result.objective.toFixed(6)}`,
+                            message: `New best feasible solution: objective=${evalData.objective.toFixed(6)} (movement=${evalData.movementPenalty.toFixed(6)}, soft=${evalData.softConstraintsViolation.toFixed(6)})`,
                             level: 'info',
                             timestamp: new Date()
                         });
@@ -433,33 +462,25 @@ export class GeoGebraOptimizer extends EventBus {
 
                 generation++;
 
-                // Emit progress
-                const currentResult = this.calculateFitnessWithConstraints(
-                    solutions[0],
-                    initialValues,
-                    sliderObjects,
-                    constraints,
-                    defaultTolerance
-                );
+                // Emit progress (use last evaluation data)
+                const lastEvalData = evaluations[evaluations.length - 1];
 
                 this.emit('optimization:progress', {
                     generation,
                     evaluations: totalEvaluations,
-                    currentSolution: solutions[0],
+                    currentSolution: solutions[solutions.length - 1],
                     metrics: {
-                        currentObjective: currentResult.objective,
-                        currentConstraintsViolation: currentResult.constraintViolation,
-                        currentL2Penalty: currentResult.l2Penalty,
-                        currentSoftPenalty: currentResult.softPenalty,
-                        currentHardPenalty: currentResult.hardPenalty,
-                        currentConstraintValues: currentResult.evaluatedConstraints,
+                        currentObjective: lastEvalData.objective,
+                        currentMovementPenalty: lastEvalData.movementPenalty,
+                        currentSoftViolation: lastEvalData.softConstraintsViolation,
+                        currentConstraintValues: lastEvalData.evaluatedConstraints,
                         bestObjective: bestObjective,
-                        bestConstraintsViolation: bestConstraintsViolation,
-                        currentDistance: currentResult.distance,  // Legacy
-                        bestDistance,
+                        bestHardViolation: bestHardViolation,
                         bestFitness,
                         generation,
-                        evaluations: totalEvaluations
+                        evaluations: totalEvaluations,
+                        // CMA-ES metrics (exact values from last solution)
+                        cmaesMetrics: cmaesMetrics
                     },
                     constraints: constraints  // Pass constraints for UI display
                 });
@@ -476,6 +497,10 @@ export class GeoGebraOptimizer extends EventBus {
                 }
             }
 
+            // Get best feasible solution from CMA-ES
+            const bestFeasibleJson = await this.pyodideManager.runPython(`get_best_feasible(cfun)`);
+            const bestFeasibleFromCMAES = JSON.parse(bestFeasibleJson);
+
             // Appliquer la meilleure solution faisable (ou meilleure solution si aucune faisable)
             const finalSolution = bestFeasibleSolution || bestSolution;
             if (finalSolution) {
@@ -490,9 +515,10 @@ export class GeoGebraOptimizer extends EventBus {
                 const deltas = this.calculateDeltas(finalSolution, initialValues, selectedSliders);
 
                 const finalMetrics = {
-                    bestObjective: finalResult.objective,
-                    bestConstraintsViolation: finalResult.constraintViolation,
-                    bestDistance: bestFeasibleSolution ? bestFeasibleDistance : bestDistance,  // Legacy
+                    bestObjective: bestFeasibleSolution ? bestFeasibleObjective : bestObjective,
+                    bestMovementPenalty: finalResult.movementPenalty,
+                    bestSoftViolation: finalResult.softConstraintsViolation,
+                    bestHardViolation: bestHardViolation,
                     totalDelta: deltas.totalDelta,
                     generation,
                     evaluations: totalEvaluations,
@@ -500,8 +526,8 @@ export class GeoGebraOptimizer extends EventBus {
                 };
 
                 const feasibilityMsg = bestFeasibleSolution
-                    ? `Feasible solution found (violation=${finalResult.constraintViolation.toFixed(6)})`
-                    : `No feasible solution (violation=${finalResult.constraintViolation.toFixed(6)})`;
+                    ? `Feasible solution found (objective=${bestFeasibleObjective.toFixed(6)}, hardViolation=${bestHardViolation.toFixed(6)})`
+                    : `No feasible solution (objective=${bestObjective.toFixed(6)}, hardViolation=${bestHardViolation.toFixed(6)})`;
 
                 this.emit('log', {
                     message: feasibilityMsg,
@@ -512,7 +538,8 @@ export class GeoGebraOptimizer extends EventBus {
                 this.emit('optimization:complete', {
                     bestSolution: finalSolution,
                     finalMetrics,
-                    deltas: deltas.sliderDeltas
+                    deltas: deltas.sliderDeltas,
+                    bestFeasibleFromCMAES: bestFeasibleFromCMAES  // Include CMA-ES best feasible
                 });
             }
 
@@ -526,6 +553,14 @@ export class GeoGebraOptimizer extends EventBus {
             });
             throw error;
         } finally {
+            // Re-enable GeoGebra rendering based on repaintingMode
+            const repaintingMode = solverParams.repaintingMode || 'auto';
+            if (repaintingMode === 'auto') {
+                // Auto mode: restore rendering after optimization
+                this.geogebraManager.setRepaintingActive(true);
+            }
+            // For 'always' and 'never': don't change (already in desired state)
+
             this.optimizationRunning = false;
             this.state.isOptimizing = false;
         }
@@ -659,24 +694,27 @@ export class GeoGebraOptimizer extends EventBus {
     }
 
     /**
-     * Calculate fitness with generic constraints
-     * Objective: L2 penalty (without lambda) + soft constraint penalties
-     * Constraints: User-defined hard and soft constraints
-     * Note: Hidden sliders are excluded from L2 penalty but still used as optimization variables
+     * Calculate fitness with constraints
+     *
+     * Returns only what's needed for CMA-ES:
+     * - objective (movement + soft)
+     * - alConstraints (hard, transformed)
+     *
+     * Hard violations are retrieved from CMA-ES (not calculated here)
      */
     calculateFitnessWithConstraints(currentValues, initialValues, sliderObjects, constraints, defaultTolerance) {
-        // Calculate L2 penalty only on NON-hidden sliders (base objective)
-        let l2Penalty = 0;
+        // Movement penalty (minimize parameter changes)
+        let movementPenalty = 0;
         if (currentValues && initialValues) {
             for (let i = 0; i < currentValues.length; i++) {
-                // Skip hidden sliders in L2 penalty calculation
-                if (sliderObjects[i] && sliderObjects[i].hidden) {
+                // Skip hidden parameters
+                if (sliderObjects[i]?.hidden) {
                     continue;
                 }
 
                 const diff = currentValues[i] - initialValues[i];
-                const weight = sliderObjects[i]?.weight !== undefined ? sliderObjects[i].weight : 1;
-                l2Penalty += weight * diff * diff;
+                const weight = sliderObjects[i]?.weight ?? 1;
+                movementPenalty += weight * diff * diff;
             }
         }
 
@@ -684,47 +722,15 @@ export class GeoGebraOptimizer extends EventBus {
         const hardConstraints = constraints.filter(c => c.type === 'hard');
         const softConstraints = constraints.filter(c => c.type === 'soft');
 
-        // Evaluate all constraints
+        // Evaluate all constraints via GeoGebra
         const evaluatedConstraints = this.evaluateConstraints(constraints);
 
-        // Process soft constraints: add penalties to objective
-        let softPenalty = 0;
+        // Soft constraints violation
+        let softConstraintsViolation = 0;
         softConstraints.forEach(constraint => {
             const idx = constraints.indexOf(constraint);
             const value = evaluatedConstraints[idx];
-            const weight = constraint.weight !== undefined ? constraint.weight : 1;
-
-            let penalty = 0;
-            switch (constraint.operator) {
-                case '<':
-                case '<=':
-                    // For <: penalize if value > 0
-                    penalty = Math.max(0, value) ** 2;
-                    break;
-                case '>':
-                case '>=':
-                    // For >: penalize if value < 0 (i.e., -value > 0)
-                    penalty = Math.max(0, -value) ** 2;
-                    break;
-                case '=':
-                    // For =: penalize any deviation from 0
-                    penalty = value ** 2;
-                    break;
-            }
-            softPenalty += weight * penalty;
-        });
-
-        // Calculate hard constraints penalty (for display, not used in optimization)
-        let hardPenalty = 0;
-        hardConstraints.forEach(constraint => {
-            // Skip disabled constraints in penalty display
-            if (constraint.enabled === false) {
-                return;
-            }
-
-            const idx = constraints.indexOf(constraint);
-            const value = evaluatedConstraints[idx];
-            const weight = constraint.weight !== undefined ? constraint.weight : 1;
+            const weight = constraint.weight ?? 1;
 
             let penalty = 0;
             switch (constraint.operator) {
@@ -740,18 +746,16 @@ export class GeoGebraOptimizer extends EventBus {
                     penalty = value ** 2;
                     break;
             }
-            hardPenalty += weight * penalty;
+            softConstraintsViolation += weight * penalty;
         });
 
-        const objective = l2Penalty + softPenalty;
+        // Objective for CMA-ES
+        const objective = movementPenalty + softConstraintsViolation;
 
-        // Process hard constraints: transform for ConstrainedFitnessAL
-        const hardEvaluatedConstraints = [];
-        hardConstraints.forEach(hc => {
+        // Transform hard constraints for AL
+        const hardEvaluatedConstraints = hardConstraints.map(hc => {
             const idx = constraints.indexOf(hc);
-            if (idx !== -1) {
-                hardEvaluatedConstraints.push(evaluatedConstraints[idx]);
-            }
+            return idx !== -1 ? evaluatedConstraints[idx] : 0;
         });
 
         const alConstraints = this.transformConstraintsForAL(
@@ -759,20 +763,13 @@ export class GeoGebraOptimizer extends EventBus {
             hardEvaluatedConstraints,
             defaultTolerance
         );
-        const constraintViolation = this.calculateConstraintViolation(alConstraints);
-
-        // Legacy distance for backward compatibility (first constraint if it's distance)
-        const distance = evaluatedConstraints[0] || 0;
 
         return {
-            objective,                      // L2 penalty + soft penalties
-            l2Penalty,                      // L2 norm of slider changes
-            softPenalty,                    // Soft constraint penalty
-            hardPenalty,                    // Hard constraint penalty (for display)
-            alConstraints,                  // Transformed hard constraints for ConstrainedFitnessAL
-            constraintViolation,            // For display
-            evaluatedConstraints,           // Raw evaluated values
-            distance                        // Legacy
+            objective,                      // Movement + soft
+            movementPenalty,                // Regularization
+            softConstraintsViolation,       // Soft penalties
+            alConstraints,                  // Hard (g ≤ 0 format)
+            evaluatedConstraints            // Raw values
         };
     }
 

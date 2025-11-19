@@ -217,6 +217,17 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
+     * Enable or disable GeoGebra repainting (rendering)
+     * Disabling repainting during optimization can significantly improve performance
+     * @param {boolean} active - true to enable rendering, false to disable
+     */
+    setRepaintingActive(active) {
+        if (this.ggbApp && typeof this.ggbApp.setRepaintingActive === 'function') {
+            this.ggbApp.setRepaintingActive(active);
+        }
+    }
+
+    /**
      * Refresh sliders (useful if changes in GeoGebra)
      */
     async refreshSliders(xmlContent) {
