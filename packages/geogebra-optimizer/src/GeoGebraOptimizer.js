@@ -625,13 +625,13 @@ export class GeoGebraOptimizer extends EventBus {
                     break;
 
                 case '>=':
-                    // g >= 0 → -g ≤ 0
-                    alConstraints.push(-g + tol);
+                    // g >= 0 → -g ≤ 0 (relaxed contraint: g ≥ -tol)
+                    alConstraints.push(-g - tol);
                     break;
 
                 case '<':
-                    // g < 0 → g < 0
-                    alConstraints.push(g + tol);
+                    // g < 0 → g < 0 (relaxed contraint: g ≤ tol)
+                    alConstraints.push(g - tol);
                     break;
 
                 case '<=':
