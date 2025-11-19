@@ -256,7 +256,7 @@ export class GeoGebraOptimizer extends EventBus {
     async optimize(options) {
         const {
             selectedSliders,
-            constraints = [{ expr: "Distance(A',A)", op: "=", value: 0 }],
+            constraints,
             defaultTolerance = 1e-4,
             solverParams = { maxiter: 100, popsize: 10, sigma: 0.5, tolfun: 1e-6, progressStep: 1 }
         } = options;
@@ -267,6 +267,10 @@ export class GeoGebraOptimizer extends EventBus {
 
         if (!selectedSliders || selectedSliders.length === 0) {
             throw new Error('No sliders selected');
+        }
+
+        if (!constraints || constraints.length === 0) {
+            throw new Error('No constraints provided. Constraints are required for optimization.');
         }
 
         this.optimizationRunning = true;
@@ -445,6 +449,10 @@ export class GeoGebraOptimizer extends EventBus {
                     metrics: {
                         currentObjective: currentResult.objective,
                         currentConstraintsViolation: currentResult.constraintViolation,
+                        currentL2Penalty: currentResult.l2Penalty,
+                        currentSoftPenalty: currentResult.softPenalty,
+                        currentHardPenalty: currentResult.hardPenalty,
+                        currentConstraintValues: currentResult.evaluatedConstraints,
                         bestObjective: bestObjective,
                         bestConstraintsViolation: bestConstraintsViolation,
                         currentDistance: currentResult.distance,  // Legacy
@@ -452,7 +460,8 @@ export class GeoGebraOptimizer extends EventBus {
                         bestFitness,
                         generation,
                         evaluations: totalEvaluations
-                    }
+                    },
+                    constraints: constraints  // Pass constraints for UI display
                 });
 
                 // Vérifier la convergence
@@ -548,37 +557,55 @@ export class GeoGebraOptimizer extends EventBus {
             const constraint = constraints[i];
             const g = evaluatedValues[i];  // Evaluated value
             const tol = constraint.tolerance ?? defaultTolerance;
+            // Note: All constraints are of the form: expression op 0
 
-            switch (constraint.op) {
+            // If constraint is disabled, return a value that always satisfies it
+            // All AL constraints are in g(x) <= 0 format, so -1e10 is always satisfied
+            if (constraint.enabled === false) {
+                switch (constraint.operator) {
+                    case '=':
+                        // Equality constraints generate 2 AL constraints
+                        alConstraints.push(-1e10);
+                        alConstraints.push(-1e10);
+                        break;
+                    default:
+                        // Inequality constraints generate 1 AL constraint
+                        alConstraints.push(-1e10);
+                        break;
+                }
+                continue;
+            }
+
+            switch (constraint.operator) {
                 case '=':
-                    // g = value → [-tol ≤ g-value ≤ tol]
-                    // Transformed: [g-value-tol ≤ 0, -g+value-tol ≤ 0]
-                    alConstraints.push(g - constraint.value - tol);
-                    alConstraints.push(-g + constraint.value - tol);
+                    // g = 0 → [-tol ≤ g ≤ tol]
+                    // Transformed: [g-tol ≤ 0, -g-tol ≤ 0]
+                    alConstraints.push(g - tol);
+                    alConstraints.push(-g - tol);
                     break;
 
                 case '>':
-                    // g > value+tol → value+tol-g < 0
-                    alConstraints.push(constraint.value + tol - g);
+                    // g > 0 → -g < 0
+                    alConstraints.push(-g - tol);
                     break;
 
                 case '>=':
-                    // g >= value-tol → value-tol-g ≤ 0
-                    alConstraints.push(constraint.value - tol - g);
+                    // g >= 0 → -g ≤ 0
+                    alConstraints.push(-g + tol);
                     break;
 
                 case '<':
-                    // g < value-tol → g-value+tol < 0
-                    alConstraints.push(g - constraint.value + tol);
+                    // g < 0 → g < 0
+                    alConstraints.push(g + tol);
                     break;
 
                 case '<=':
-                    // g <= value+tol → g-value-tol ≤ 0
-                    alConstraints.push(g - constraint.value - tol);
+                    // g <= 0 → g ≤ 0
+                    alConstraints.push(g - tol);
                     break;
 
                 default:
-                    throw new Error(`Unknown operator: ${constraint.op}`);
+                    throw new Error(`Unknown operator: ${constraint.operator}`);
             }
         }
 
@@ -595,13 +622,27 @@ export class GeoGebraOptimizer extends EventBus {
     evaluateConstraints(constraints) {
         return constraints.map(constraint => {
             // TODO: Parse and evaluate real GeoGebra expressions
-            // For now, fake evaluation based on expr
-            if (constraint.expr.includes("Distance(A',A)") || constraint.expr.includes("Distance(A,A')")) {
-                return this.geogebraManager.calculateDistance('A', "A'");
+            // For now, evaluate using GeoGebra API
+            const expr = constraint.expression;
+
+            if (!expr) {
+                throw new Error('Constraint has no expression:', constraint);
             }
 
-            // Fake other constraints
-            return 0;
+            try {
+                // Try to evaluate the expression using GeoGebra API
+                const ggbApi = this.geogebraManager.getAPI();
+                const value = ggbApi.getValue(expr);
+
+                // If getValue works, return the value
+                if (typeof value !== 'number'|| isNaN(value)) {
+                    throw new Error('Cannot evaluate constraint:', constraint);
+                }
+
+                return value;
+            } catch (e) {
+                throw new Error('Cannot evaluate constraint:', constraint, "Error:", e);
+            }
         });
     }
 
@@ -619,13 +660,13 @@ export class GeoGebraOptimizer extends EventBus {
 
     /**
      * Calculate fitness with generic constraints
-     * Objective: L2 penalty (without lambda)
-     * Constraints: User-defined constraints
+     * Objective: L2 penalty (without lambda) + soft constraint penalties
+     * Constraints: User-defined hard and soft constraints
      * Note: Hidden sliders are excluded from L2 penalty but still used as optimization variables
      */
     calculateFitnessWithConstraints(currentValues, initialValues, sliderObjects, constraints, defaultTolerance) {
-        // Calculate L2 penalty only on NON-hidden sliders (objective)
-        let objective = 0;
+        // Calculate L2 penalty only on NON-hidden sliders (base objective)
+        let l2Penalty = 0;
         if (currentValues && initialValues) {
             for (let i = 0; i < currentValues.length; i++) {
                 // Skip hidden sliders in L2 penalty calculation
@@ -634,21 +675,101 @@ export class GeoGebraOptimizer extends EventBus {
                 }
 
                 const diff = currentValues[i] - initialValues[i];
-                objective += diff * diff;
+                const weight = sliderObjects[i]?.weight !== undefined ? sliderObjects[i].weight : 1;
+                l2Penalty += weight * diff * diff;
             }
         }
 
-        // Evaluate and transform constraints
+        // Separate hard and soft constraints
+        const hardConstraints = constraints.filter(c => c.type === 'hard');
+        const softConstraints = constraints.filter(c => c.type === 'soft');
+
+        // Evaluate all constraints
         const evaluatedConstraints = this.evaluateConstraints(constraints);
-        const alConstraints = this.transformConstraintsForAL(constraints, evaluatedConstraints, defaultTolerance);
+
+        // Process soft constraints: add penalties to objective
+        let softPenalty = 0;
+        softConstraints.forEach(constraint => {
+            const idx = constraints.indexOf(constraint);
+            const value = evaluatedConstraints[idx];
+            const weight = constraint.weight !== undefined ? constraint.weight : 1;
+
+            let penalty = 0;
+            switch (constraint.operator) {
+                case '<':
+                case '<=':
+                    // For <: penalize if value > 0
+                    penalty = Math.max(0, value) ** 2;
+                    break;
+                case '>':
+                case '>=':
+                    // For >: penalize if value < 0 (i.e., -value > 0)
+                    penalty = Math.max(0, -value) ** 2;
+                    break;
+                case '=':
+                    // For =: penalize any deviation from 0
+                    penalty = value ** 2;
+                    break;
+            }
+            softPenalty += weight * penalty;
+        });
+
+        // Calculate hard constraints penalty (for display, not used in optimization)
+        let hardPenalty = 0;
+        hardConstraints.forEach(constraint => {
+            // Skip disabled constraints in penalty display
+            if (constraint.enabled === false) {
+                return;
+            }
+
+            const idx = constraints.indexOf(constraint);
+            const value = evaluatedConstraints[idx];
+            const weight = constraint.weight !== undefined ? constraint.weight : 1;
+
+            let penalty = 0;
+            switch (constraint.operator) {
+                case '<':
+                case '<=':
+                    penalty = Math.max(0, value) ** 2;
+                    break;
+                case '>':
+                case '>=':
+                    penalty = Math.max(0, -value) ** 2;
+                    break;
+                case '=':
+                    penalty = value ** 2;
+                    break;
+            }
+            hardPenalty += weight * penalty;
+        });
+
+        const objective = l2Penalty + softPenalty;
+
+        // Process hard constraints: transform for ConstrainedFitnessAL
+        const hardEvaluatedConstraints = [];
+        hardConstraints.forEach(hc => {
+            const idx = constraints.indexOf(hc);
+            if (idx !== -1) {
+                hardEvaluatedConstraints.push(evaluatedConstraints[idx]);
+            }
+        });
+
+        const alConstraints = this.transformConstraintsForAL(
+            hardConstraints,
+            hardEvaluatedConstraints,
+            defaultTolerance
+        );
         const constraintViolation = this.calculateConstraintViolation(alConstraints);
 
         // Legacy distance for backward compatibility (first constraint if it's distance)
         const distance = evaluatedConstraints[0] || 0;
 
         return {
-            objective,                      // L2 penalty
-            alConstraints,                  // Transformed for ConstrainedFitnessAL
+            objective,                      // L2 penalty + soft penalties
+            l2Penalty,                      // L2 norm of slider changes
+            softPenalty,                    // Soft constraint penalty
+            hardPenalty,                    // Hard constraint penalty (for display)
+            alConstraints,                  // Transformed hard constraints for ConstrainedFitnessAL
             constraintViolation,            // For display
             evaluatedConstraints,           // Raw evaluated values
             distance                        // Legacy
@@ -768,6 +889,18 @@ export class GeoGebraOptimizer extends EventBus {
      */
     getSliderValues() {
         return this.geogebraManager.getSliderValues();
+    }
+
+    /**
+     * Get parsed constraints from GeoGebra XML.
+     *
+     * @returns {Array<{type: string, operator: string, label: string, expression: string}>} Array of constraints
+     * @example
+     * const constraints = optimizer.getConstraints();
+     * console.log(constraints); // [{ type: 'hard', operator: '=', label: 'A=A\'', expression: 'Distance[A, A\']' }]
+     */
+    getConstraints() {
+        return this.geogebraManager.getConstraints();
     }
 
     /**

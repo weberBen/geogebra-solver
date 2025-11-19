@@ -9,6 +9,7 @@
     "deselectAll": "Tout désélectionner",
     "name": "Nom",
     "value": "Valeur",
+    "weight": "Poids",
     "delta": "Δ",
     "bounds": "Bornes",
     "noSliders": "Aucun slider disponible"
@@ -37,6 +38,22 @@
     "currentConstraints": "Contraintes Actuelles",
     "generation": "Génération",
     "evaluations": "Évaluations"
+  },
+  "constraintsPanel": {
+    "title": "Contraintes",
+    "hardConstraints": "Contraintes Strictes",
+    "softConstraints": "Contraintes Souples",
+    "weight": "Poids",
+    "enabled": "Activé",
+    "noHardConstraints": "Aucune contrainte stricte",
+    "noSoftConstraints": "Aucune contrainte souple"
+  },
+  "geogebraEvaluator": {
+    "title": "Évaluateur GeoGebra",
+    "placeholder": "Entrez une expression GeoGebra (ex: Distance[A, A'])",
+    "evaluate": "Évaluer",
+    "result": "Résultat",
+    "error": "Erreur"
   },
   "logsPanel": {
     "title": "Logs",

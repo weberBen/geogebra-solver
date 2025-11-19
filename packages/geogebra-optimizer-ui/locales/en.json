@@ -9,6 +9,7 @@
     "deselectAll": "Deselect All",
     "name": "Name",
     "value": "Value",
+    "weight": "Weight",
     "delta": "Δ",
     "bounds": "Bounds",
     "noSliders": "No sliders available"
@@ -37,6 +38,22 @@
     "currentConstraints": "Current Constraints",
     "generation": "Generation",
     "evaluations": "Evaluations"
+  },
+  "constraintsPanel": {
+    "title": "Constraints",
+    "hardConstraints": "Hard Constraints",
+    "softConstraints": "Soft Constraints",
+    "weight": "Weight",
+    "enabled": "Enabled",
+    "noHardConstraints": "No hard constraints",
+    "noSoftConstraints": "No soft constraints"
+  },
+  "geogebraEvaluator": {
+    "title": "GeoGebra Evaluator",
+    "placeholder": "Enter GeoGebra expression (e.g., Distance[A, A'])",
+    "evaluate": "Evaluate",
+    "result": "Result",
+    "error": "Error"
   },
   "logsPanel": {
     "title": "Logs",

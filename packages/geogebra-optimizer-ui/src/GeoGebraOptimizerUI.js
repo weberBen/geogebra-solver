@@ -5,6 +5,8 @@ import { ControlButtons } from './modules/ControlButtons.js';
 import { SolverParams } from './modules/SolverParams.js';
 import { ObjectiveParams } from './modules/ObjectiveParams.js';
 import { MetricsPanel } from './modules/MetricsPanel.js';
+import { ConstraintsPanel } from './modules/ConstraintsPanel.js';
+import { GeoGebraEvaluator } from './modules/GeoGebraEvaluator.js';
 import { LogsPanel } from './modules/LogsPanel.js';
 import { SnapshotHistory } from './modules/SnapshotHistory.js';
 import { ExportPanel } from './modules/ExportPanel.js';
@@ -208,21 +210,60 @@ export class GeoGebraOptimizerUI {
                 }
             },
             {
-                name: 'snapshot',
-                component: SnapshotHistory,
+                name: 'constraints',
+                component: ConstraintsPanel,
                 row: 2,
                 col: 2,
                 props: { localize }
             },
             {
-                name: 'objective',
-                component: ObjectiveParams,
+                name: 'evaluator',
+                component: GeoGebraEvaluator,
+                row: 3,
+                col: 2,
+                rowSpan: 2,
+                props: { localize }
+            },
+            {
+                name: 'snapshot',
+                component: SnapshotHistory,
+                row: 5,
+                col: 2,
+                props: { localize }
+            },
+            {
+                name: 'metrics',
+                component: MetricsPanel,
                 row: 6,
-                col: 1,
+                col: 2,
+                rowSpan: 1,
+                props: { localize }
+            },
+            {
+                name: 'progress',
+                component: ProgressBar,
+                row: 7,
+                col: 2,
+                colSpan: 1,
+                props: { localize }
+            },
+            {
+                name: 'export',
+                component: ExportPanel,
+                row: 8,
+                col: 2,
+                rowSpan: 2,
                 props: {
                     localize,
-                    ...this.objectiveParamsProps
+                    ...this.exportPanelProps
                 }
+            },
+            {
+                name: 'controls',
+                component: ControlButtons,
+                row: 4,
+                col: 1,
+                props: { localize }
             },
             {
                 name: 'solver',
@@ -235,38 +276,14 @@ export class GeoGebraOptimizerUI {
                 }
             },
             {
-                name: 'controls',
-                component: ControlButtons,
-                row: 4,
+                name: 'objective',
+                component: ObjectiveParams,
+                row: 6,
                 col: 1,
-                props: { localize }
-            },
-            {
-                name: 'metrics',
-                component: MetricsPanel,
-                row: 3,
-                col: 2,
-                rowSpan: 1,
-                props: { localize }
-            },
-            {
-                name: 'export',
-                component: ExportPanel,
-                row: 5,
-                col: 2,
-                rowSpan:2,
                 props: {
                     localize,
-                    ...this.exportPanelProps
+                    ...this.objectiveParamsProps
                 }
-            },
-            {
-                name: 'progress',
-                component: ProgressBar,
-                row: 4,
-                col: 2,
-                colSpan: 1,
-                props: { localize }
             },
             {
                 name: 'logs',
@@ -311,6 +328,8 @@ export class GeoGebraOptimizerUI {
             objective: this.layoutManager.getModule('objective'),
             solver: this.layoutManager.getModule('solver'),
             metrics: this.layoutManager.getModule('metrics'),
+            constraints: this.layoutManager.getModule('constraints'),
+            evaluator: this.layoutManager.getModule('evaluator'),
             logs: this.layoutManager.getModule('logs'),
             export: this.layoutManager.getModule('export'),
             progress: this.layoutManager.getModule('progress')
@@ -365,6 +384,24 @@ export class GeoGebraOptimizerUI {
             ...optimizerConfig,
             container
         });
+
+        // Update constraints panel with parsed constraints
+        const constraints = this.optimizer.getConstraints();
+        console.log('[GeoGebraOptimizerUI] Constraints loaded:', constraints);
+        if (this.modules.constraints) {
+            this.modules.constraints.updateConstraints(constraints);
+            const hardCount = constraints.filter(c => c.type === 'hard').length;
+            const softCount = constraints.filter(c => c.type === 'soft').length;
+            this.modules.logs?.addEntry(
+                `Loaded ${constraints.length} constraint(s) (${hardCount} hard, ${softCount} soft)`,
+                'info'
+            );
+        }
+
+        // Set GeoGebra API for evaluator
+        if (this.modules.evaluator) {
+            this.modules.evaluator.setAPI(this.optimizer.getGeoGebraAPI());
+        }
 
         // Create ExportManager
         this.exportManager = new ExportManager({
@@ -431,7 +468,7 @@ export class GeoGebraOptimizerUI {
         });
 
         // Optimization progress
-        this.optimizer.on('optimization:progress', ({ generation, evaluations, metrics }) => {
+        this.optimizer.on('optimization:progress', ({ generation, evaluations, metrics, constraints }) => {
             this.modules.metrics?.updateMetrics({
                 generation,
                 evaluations,
@@ -439,6 +476,14 @@ export class GeoGebraOptimizerUI {
                 currentConstraintsViolation: metrics.currentConstraintsViolation,
                 bestObjective: metrics.bestObjective,
                 bestConstraintsViolation: metrics.bestConstraintsViolation
+            });
+
+            // Update constraints panel with live values
+            this.modules.constraints?.updateMetrics({
+                constraintValues: metrics.currentConstraintValues,
+                l2Penalty: metrics.currentL2Penalty,
+                hardPenalty: metrics.currentHardPenalty,
+                softPenalty: metrics.currentSoftPenalty
             });
         });
 
@@ -528,7 +573,7 @@ export class GeoGebraOptimizerUI {
 
         // Errors
         this.optimizer.on('error', ({ error, context }) => {
-            this.modules.controls?.setStatus('Error', 'error');
+            this.modules.controls?.setStatus(`Error: ${error.message}`, 'error');
             this.modules.logs?.addEntry(`ERROR (${context}): ${error.message}`, 'error');
             // Re-enable slider value inputs on error
             this.modules.sliders?.setOptimizing(false);
@@ -595,25 +640,43 @@ export class GeoGebraOptimizerUI {
      */
     setupUIEvents() {
         // Start optimization
-        this.modules.controls?.addEventListener('start-optimization', () => {
-            const { sliders } = this.modules.sliders.getSelectedSliders();
+        this.modules.controls?.addEventListener('start-optimization', async () => {
+            try {
+                const { sliders } = this.modules.sliders.getSelectedSliders();
 
-            if (sliders.length === 0) {
-                this.modules.logs?.addEntry('No sliders selected', 'warning');
-                return;
+                if (sliders.length === 0) {
+                    this.modules.logs?.addEntry('No sliders selected', 'warning');
+                    return;
+                }
+
+                // Get constraints from optimizer
+                const constraints = this.optimizer.getConstraints();
+
+                if (!constraints || constraints.length === 0) {
+                    this.modules.logs?.addEntry('No constraints found. Cannot start optimization.', 'error');
+                    this.modules.controls?.setStatus('Error: No constraints', 'error');
+                    return;
+                }
+
+                // Disable slider value inputs during optimization
+                this.modules.sliders?.setOptimizing(true);
+
+                const lambda = this.modules.objective.getLambda();
+                const solverParams = this.modules.solver.getParams();
+
+                await this.optimizer.optimize({
+                    selectedSliders: sliders,
+                    constraints: constraints,
+                    objectiveParams: { lambda },
+                    solverParams
+                });
+            } catch (error) {
+                // Handle any synchronous errors
+                this.modules.controls?.setStatus(`Error: ${error.message}`, 'error');
+                this.modules.logs?.addEntry(`ERROR: ${error.message}`, 'error');
+                this.modules.sliders?.setOptimizing(false);
+                console.error('Optimization error:', error);
             }
-
-            // Disable slider value inputs during optimization
-            this.modules.sliders?.setOptimizing(true);
-
-            const lambda = this.modules.objective.getLambda();
-            const solverParams = this.modules.solver.getParams();
-
-            this.optimizer.optimize({
-                selectedSliders: sliders,
-                objectiveParams: { lambda },
-                solverParams
-            });
         });
 
         // Stop optimization

@@ -205,27 +205,30 @@ export class SliderPanel extends BaseModule {
     }
 
     /**
-     * Get selected slider names and their bounds.
+     * Get selected slider names, bounds, and weights.
      *
-     * @returns {{sliders: string[], bounds: {min: number[], max: number[]}}}
+     * @returns {{sliders: string[], bounds: {min: number[], max: number[]}, weights: number[]}}
      * @example
-     * const { sliders, bounds } = panel.getSelectedSliders();
+     * const { sliders, bounds, weights } = panel.getSelectedSliders();
      * console.log(sliders); // ['AB', 'BC']
      * console.log(bounds);  // { min: [0, 0], max: [10, 10] }
+     * console.log(weights); // [1, 2]
      */
     getSelectedSliders() {
         const selectedNames = Array.from(this.state.selectedSliders);
         const bounds = { min: [], max: [] };
+        const weights = [];
 
         selectedNames.forEach(name => {
             const slider = this.state.sliders.find(s => s.name === name);
             if (slider) {
                 bounds.min.push(slider.min);
                 bounds.max.push(slider.max);
+                weights.push(slider.weight !== undefined ? slider.weight : 1);
             }
         });
 
-        return { sliders: selectedNames, bounds };
+        return { sliders: selectedNames, bounds, weights };
     }
 
     /**
@@ -257,6 +260,7 @@ export class SliderPanel extends BaseModule {
                                     <th></th>
                                     <th>${t('sliderPanel.name')}</th>
                                     <th>${t('sliderPanel.value')}</th>
+                                    <th>${t('sliderPanel.weight')}</th>
                                     <th>${t('sliderPanel.delta')}</th>
                                     <th>${t('sliderPanel.bounds')}</th>
                                 </tr>
@@ -316,6 +320,22 @@ export class SliderPanel extends BaseModule {
                     const slider = this.state.sliders.find(s => s.name === sliderName);
                     if (slider) {
                         slider.value = newValue;
+                    }
+                }
+            });
+        });
+
+        // Weight input change
+        this.$$('.slider-panel__weight-input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const sliderName = e.target.dataset.sliderName;
+                const newWeight = parseFloat(e.target.value);
+
+                if (!isNaN(newWeight) && newWeight >= 0) {
+                    // Update internal slider state
+                    const slider = this.state.sliders.find(s => s.name === sliderName);
+                    if (slider) {
+                        slider.weight = newWeight;
                     }
                 }
             });

@@ -67,6 +67,7 @@ export class SliderRow {
                 ${this.renderCheckbox(slider, isSelected, t)}
                 ${this.renderName(slider, t)}
                 ${this.renderValue(slider, isDisabled, t, step)}
+                ${this.renderWeight(slider, isDisabled, t)}
                 ${this.renderDelta(slider, delta, t)}
                 ${this.renderBounds(slider, t)}
             </tr>
@@ -128,6 +129,31 @@ export class SliderRow {
                        min="${slider.min}"
                        max="${slider.max}"
                        step="${step}"
+                       ${isDisabled ? 'disabled' : ''} />
+            </td>
+        `;
+    }
+
+    /**
+     * Render the weight cell.
+     * Override to customize weight display.
+     *
+     * @protected
+     * @param {Object} slider - Slider data
+     * @param {boolean} isDisabled - Whether input should be disabled
+     * @param {Function} t - Translation function
+     * @returns {string} HTML string for weight cell
+     */
+    static renderWeight(slider, isDisabled, t) {
+        const weight = slider.weight !== undefined ? slider.weight : 1;
+        return `
+            <td class="slider-panel__weight">
+                <input type="number"
+                       class="slider-panel__weight-input"
+                       data-slider-name="${slider.name}"
+                       value="${weight}"
+                       min="0"
+                       step="0.1"
                        ${isDisabled ? 'disabled' : ''} />
             </td>
         `;

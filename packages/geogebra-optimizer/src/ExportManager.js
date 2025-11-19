@@ -224,8 +224,15 @@ export class ExportManager extends EventBus {
 
         let prevViewport = null;
         let originalVisibility = null;
+        let decorationValue = null;
         try {
             const api = this.getGeoGebraAPI();
+
+            // Save and disable decoration checkbox
+            if (api.exists('decoration')) {
+                decorationValue = api.getValue('decoration');
+                api.setValue('decoration', false);
+            }
 
             // Hide decorative elements if requested
             if (hideDecorative) {
@@ -274,6 +281,12 @@ export class ExportManager extends EventBus {
             if (originalVisibility) {
                 this.geogebraManager.restoreVisibility(originalVisibility);
             }
+
+            // Restore decoration checkbox
+            if (decorationValue !== null) {
+                const api = this.getGeoGebraAPI();
+                api.setValue('decoration', decorationValue);
+            }
         }
     }
 
@@ -308,8 +321,15 @@ export class ExportManager extends EventBus {
 
         let prevViewport = null;
         let originalVisibility = null;
+        let decorationValue = null;
         try {
             const api = this.getGeoGebraAPI();
+
+            // Save and disable decoration checkbox
+            if (api.exists('decoration')) {
+                decorationValue = api.getValue('decoration');
+                api.setValue('decoration', false);
+            }
 
             // Hide decorative elements if requested
             if (hideDecorative) {
@@ -364,6 +384,12 @@ export class ExportManager extends EventBus {
             if (originalVisibility) {
                 this.geogebraManager.restoreVisibility(originalVisibility);
             }
+
+            // Restore decoration checkbox
+            if (decorationValue !== null) {
+                const api = this.getGeoGebraAPI();
+                api.setValue('decoration', decorationValue);
+            }
         }
     }
 
@@ -396,12 +422,19 @@ export class ExportManager extends EventBus {
 
         let prevViewport = null;
         let originalVisibility = null;
+        let decorationValue = null;
         try {
             const api = this.getGeoGebraAPI();
 
             // Check if exportPDF is available
             if (typeof api.exportPDF !== 'function') {
                 throw new Error('PDF export not available in this GeoGebra version');
+            }
+
+            // Save and disable decoration checkbox
+            if (api.exists('decoration')) {
+                decorationValue = api.getValue('decoration');
+                api.setValue('decoration', false);
             }
 
             // Hide decorative elements if requested
@@ -443,6 +476,12 @@ export class ExportManager extends EventBus {
             // Restore visibility of decorative elements
             if (originalVisibility) {
                 this.geogebraManager.restoreVisibility(originalVisibility);
+            }
+
+            // Restore decoration checkbox
+            if (decorationValue !== null) {
+                const api = this.getGeoGebraAPI();
+                api.setValue('decoration', decorationValue);
             }
         }
     }
