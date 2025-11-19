@@ -3,8 +3,8 @@
     "title": "Visualiseur GeoGebra",
     "loading": "Chargement de GeoGebra..."
   },
-  "sliderPanel": {
-    "title": "Sliders",
+  "variablePanel": {
+    "title": "Variables",
     "selectAll": "Tout sélectionner",
     "deselectAll": "Tout désélectionner",
     "name": "Nom",
@@ -12,7 +12,7 @@
     "weight": "Poids",
     "delta": "Δ",
     "bounds": "Bornes",
-    "noSliders": "Aucun slider disponible"
+    "noVariables": "Aucune variable disponible"
   },
   "controlButtons": {
     "start": "Démarrer l'optimisation",
@@ -29,11 +29,6 @@
     "repaintingModeAuto": "Auto (désactivé pendant, activé après)",
     "repaintingModeAlways": "Toujours (voir la progression en direct)",
     "repaintingModeNever": "Jamais (performance maximale)"
-  },
-  "objectiveParams": {
-    "title": "Paramètres de l'Objectif",
-    "lambda": "Régularisation (λ)",
-    "lambdaDescription": "Contrôle l'équilibre entre minimisation de distance et changements des sliders"
   },
   "metricsPanel": {
     "title": "Métriques",
@@ -83,7 +78,7 @@
     "restore": "Restaurer",
     "columnTime": "Heure",
     "columnType": "Type",
-    "columnSliders": "Valeurs des Sliders",
+    "columnVariables": "Valeurs des Variables",
     "columnMetrics": "Métriques",
     "columnActions": "Actions",
     "typeBefore": "Avant Optimisation",
@@ -114,7 +109,7 @@
     "exportXML": "Exporter XML",
     "pngScale": "Échelle PNG",
     "pngTransparent": "Fond Transparent",
-    "hideDecorative": "Masquer éléments décoratifs (texte, points, sliders, etc.)",
+    "hideDecorative": "Masquer éléments décoratifs (texte, points, variables, etc.)",
     "webhookExport": "Traitement Serveur",
     "webhookUrl": "URL Webhook",
     "sourceFormat": "Format Source",

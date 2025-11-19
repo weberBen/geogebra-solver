@@ -1,5 +1,5 @@
 /**
- * Slider row renderer.
+ * Variable row renderer.
  * Factory class with static methods for rendering table rows.
  * Can be extended to customize row rendering.
  *
@@ -7,35 +7,35 @@
  *
  * @example
  * // Default usage
- * const html = SliderRow.render(slider, true, 0.5, t);
+ * const html = VariableRow.render(variable, true, 0.5, t);
  *
  * @example
  * // Custom renderer
- * class CustomSliderRow extends SliderRow {
- *     static renderValue(slider, t) {
- *         const color = slider.value > 5 ? 'green' : 'red';
- *         return `<td style="color: ${color}">${slider.value.toFixed(3)}</td>`;
+ * class CustomVariableRow extends VariableRow {
+ *     static renderValue(variable, t) {
+ *         const color = variable.value > 5 ? 'green' : 'red';
+ *         return `<td style="color: ${color}">${variable.value.toFixed(3)}</td>`;
  *     }
  * }
  */
-export class SliderRow {
+export class VariableRow {
     /**
-     * Render a complete slider row.
+     * Render a complete variable row.
      *
-     * @param {Object} slider - Slider data
-     * @param {string} slider.name - Slider identifier
-     * @param {number} slider.value - Current value
-     * @param {number} slider.min - Minimum bound
-     * @param {number} slider.max - Maximum bound
-     * @param {boolean} isSelected - Whether slider is selected
+     * @param {Object} variable - Variable data
+     * @param {string} variable.name - Variable identifier
+     * @param {number} variable.value - Current value
+     * @param {number} variable.min - Minimum bound
+     * @param {number} variable.max - Maximum bound
+     * @param {boolean} isSelected - Whether variable is selected
      * @param {number|undefined} delta - Delta value from optimization
      * @param {Function} t - Translation function
      * @param {boolean} [isDisabled=false] - Whether inputs should be disabled
-     * @param {number} [step=0.5] - Step value for the slider input
+     * @param {number} [step=0.5] - Step value for the variable input
      * @returns {string} HTML string for the row
      *
      * @example
-     * SliderRow.render(
+     * VariableRow.render(
      *   { name: 'AB', value: 5.2, min: 0, max: 10 },
      *   true,
      *   0.3,
@@ -44,8 +44,8 @@ export class SliderRow {
      *   0.5
      * );
      */
-    static render(slider, isSelected, delta, t, isDisabled = false, step = 0.5) {
-        return this.renderRow(slider, isSelected, delta, t, isDisabled, step);
+    static render(variable, isSelected, delta, t, isDisabled = false, step = 0.5) {
+        return this.renderRow(variable, isSelected, delta, t, isDisabled, step);
     }
 
     /**
@@ -53,23 +53,23 @@ export class SliderRow {
      * Override this to completely customize the row structure.
      *
      * @protected
-     * @param {Object} slider - Slider data
-     * @param {boolean} isSelected - Whether slider is selected
+     * @param {Object} variable - Variable data
+     * @param {boolean} isSelected - Whether variable is selected
      * @param {number|undefined} delta - Delta value
      * @param {Function} t - Translation function
      * @param {boolean} isDisabled - Whether inputs should be disabled
-     * @param {number} step - Step value for the slider input
+     * @param {number} step - Step value for the variable input
      * @returns {string} HTML string for the row
      */
-    static renderRow(slider, isSelected, delta, t, isDisabled, step) {
+    static renderRow(variable, isSelected, delta, t, isDisabled, step) {
         return `
-            <tr class="slider-panel__row" data-slider="${slider.name}">
-                ${this.renderCheckbox(slider, isSelected, t)}
-                ${this.renderName(slider, t)}
-                ${this.renderValue(slider, isDisabled, t, step)}
-                ${this.renderWeight(slider, isDisabled, t)}
-                ${this.renderDelta(slider, delta, t)}
-                ${this.renderBounds(slider, t)}
+            <tr class="variable-panel__row" data-variable="${variable.name}">
+                ${this.renderCheckbox(variable, isSelected, t)}
+                ${this.renderName(variable, t)}
+                ${this.renderValue(variable, isDisabled, t, step)}
+                ${this.renderWeight(variable, isDisabled, t)}
+                ${this.renderDelta(variable, delta, t)}
+                ${this.renderBounds(variable, t)}
             </tr>
         `;
     }
@@ -79,17 +79,17 @@ export class SliderRow {
      * Override to customize checkbox appearance or behavior.
      *
      * @protected
-     * @param {Object} slider - Slider data
-     * @param {boolean} isSelected - Whether slider is selected
+     * @param {Object} variable - Variable data
+     * @param {boolean} isSelected - Whether variable is selected
      * @param {Function} t - Translation function
      * @returns {string} HTML string for checkbox cell
      */
-    static renderCheckbox(slider, isSelected, t) {
+    static renderCheckbox(variable, isSelected, t) {
         return `
             <td>
                 <input type="checkbox"
-                       class="slider-panel__checkbox"
-                       data-name="${slider.name}"
+                       class="variable-panel__checkbox"
+                       data-name="${variable.name}"
                        ${isSelected ? 'checked' : ''} />
             </td>
         `;
@@ -100,12 +100,12 @@ export class SliderRow {
      * Override to customize name display (e.g., add icons, tooltips).
      *
      * @protected
-     * @param {Object} slider - Slider data
+     * @param {Object} variable - Variable data
      * @param {Function} t - Translation function
      * @returns {string} HTML string for name cell
      */
-    static renderName(slider, t) {
-        return `<td class="slider-panel__name">${slider.name}</td>`;
+    static renderName(variable, t) {
+        return `<td class="variable-panel__name">${variable.name}</td>`;
     }
 
     /**
@@ -113,21 +113,21 @@ export class SliderRow {
      * Override to customize value formatting or styling.
      *
      * @protected
-     * @param {Object} slider - Slider data
+     * @param {Object} variable - Variable data
      * @param {boolean} isDisabled - Whether input should be disabled
      * @param {Function} t - Translation function
      * @param {number} step - Step value for the input
      * @returns {string} HTML string for value cell
      */
-    static renderValue(slider, isDisabled, t, step) {
+    static renderValue(variable, isDisabled, t, step) {
         return `
-            <td class="slider-panel__value">
+            <td class="variable-panel__value">
                 <input type="number"
-                       class="slider-panel__value-input"
-                       data-slider-name="${slider.name}"
-                       value="${slider.value.toFixed(3)}"
-                       min="${slider.min}"
-                       max="${slider.max}"
+                       class="variable-panel__value-input"
+                       data-variable-name="${variable.name}"
+                       value="${variable.value.toFixed(3)}"
+                       min="${variable.min}"
+                       max="${variable.max}"
                        step="${step}"
                        ${isDisabled ? 'disabled' : ''} />
             </td>
@@ -139,18 +139,18 @@ export class SliderRow {
      * Override to customize weight display.
      *
      * @protected
-     * @param {Object} slider - Slider data
+     * @param {Object} variable - Variable data
      * @param {boolean} isDisabled - Whether input should be disabled
      * @param {Function} t - Translation function
      * @returns {string} HTML string for weight cell
      */
-    static renderWeight(slider, isDisabled, t) {
-        const weight = slider.weight !== undefined ? slider.weight : 1;
+    static renderWeight(variable, isDisabled, t) {
+        const weight = variable.weight !== undefined ? variable.weight : 1;
         return `
-            <td class="slider-panel__weight">
+            <td class="variable-panel__weight">
                 <input type="number"
-                       class="slider-panel__weight-input"
-                       data-slider-name="${slider.name}"
+                       class="variable-panel__weight-input"
+                       data-variable-name="${variable.name}"
                        value="${weight}"
                        min="0"
                        step="0.1"
@@ -164,20 +164,20 @@ export class SliderRow {
      * Override to customize delta display.
      *
      * @protected
-     * @param {Object} slider - Slider data
+     * @param {Object} variable - Variable data
      * @param {number|undefined} delta - Delta value
      * @param {Function} t - Translation function
      * @returns {string} HTML string for delta cell
      */
-    static renderDelta(slider, delta, t) {
+    static renderDelta(variable, delta, t) {
         const hasDeltas = delta !== undefined;
-        const deltaClass = hasDeltas ? 'slider-panel__delta--visible' : '';
+        const deltaClass = hasDeltas ? 'variable-panel__delta--visible' : '';
         const deltaText = hasDeltas
             ? (delta >= 0 ? '+' : '') + delta.toFixed(3)
             : '-';
 
         return `
-            <td class="slider-panel__delta ${deltaClass}">
+            <td class="variable-panel__delta ${deltaClass}">
                 ${deltaText}
             </td>
         `;
@@ -188,14 +188,14 @@ export class SliderRow {
      * Override to customize bounds display.
      *
      * @protected
-     * @param {Object} slider - Slider data
+     * @param {Object} variable - Variable data
      * @param {Function} t - Translation function
      * @returns {string} HTML string for bounds cell
      */
-    static renderBounds(slider, t) {
+    static renderBounds(variable, t) {
         return `
-            <td class="slider-panel__bounds">
-                [${slider.min}, ${slider.max}]
+            <td class="variable-panel__bounds">
+                [${variable.min}, ${variable.max}]
             </td>
         `;
     }

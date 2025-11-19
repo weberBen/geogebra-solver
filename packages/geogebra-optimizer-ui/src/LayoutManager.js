@@ -32,7 +32,7 @@
  *
  * layout.setModules([
  *   { name: 'viewer', component: GeoGebraFrame, row: 1, col: 1, rowSpan: 3 },
- *   { name: 'sliders', component: SliderPanel, row: 1, col: 2 }
+ *   { name: 'variables', component: VariablePanel, row: 1, col: 2 }
  * ]);
  *
  * const container = layout.render(document.body);

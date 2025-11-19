@@ -110,8 +110,8 @@
     to { transform: rotate(360deg); }
 }
 
-/* ===== Slider Panel ===== */
-.slider-panel {
+/* ===== variable Panel ===== */
+.variable-panel {
     background: var(--surface);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
@@ -121,7 +121,7 @@
     max-height: 500px;
 }
 
-.slider-panel__header {
+.variable-panel__header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -130,20 +130,20 @@
     gap: 0.5rem;
 }
 
-.slider-panel__title {
+.variable-panel__title {
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--text-primary);
 }
 
-.slider-panel__actions {
+.variable-panel__actions {
     display: flex;
     gap: 0.5rem;
 }
 
-.slider-panel__select-all,
-.slider-panel__deselect-all {
+.variable-panel__select-all,
+.variable-panel__deselect-all {
     padding: 0.4rem 0.8rem;
     font-size: 0.85rem;
     border: 1px solid var(--border-color);
@@ -153,31 +153,31 @@
     transition: all 0.2s;
 }
 
-.slider-panel__select-all:hover,
-.slider-panel__deselect-all:hover {
+.variable-panel__select-all:hover,
+.variable-panel__deselect-all:hover {
     background: var(--background);
     border-color: var(--primary-color);
 }
 
-.slider-panel__content {
+.variable-panel__content {
     flex: 1;
     overflow-y: auto;
 }
 
-.slider-panel__table {
+.variable-panel__table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.9rem;
 }
 
-.slider-panel__table thead {
+.variable-panel__table thead {
     position: sticky;
     top: 0;
     background: var(--surface);
     z-index: 1;
 }
 
-.slider-panel__table th {
+.variable-panel__table th {
     text-align: left;
     padding: 0.5rem;
     font-weight: 600;
@@ -186,40 +186,80 @@
     font-size: 0.85rem;
 }
 
-.slider-panel__table td {
+.variable-panel__table td {
     padding: 0.5rem;
     border-bottom: 1px solid var(--border-color);
 }
 
-.slider-panel__row:hover {
+.variable-panel__row:hover {
     background: var(--background);
 }
 
-.slider-panel__checkbox {
+.variable-panel__checkbox {
     cursor: pointer;
     width: 16px;
     height: 16px;
 }
 
-.slider-panel__name {
+.variable-panel__name {
     font-weight: 500;
     color: var(--text-primary);
 }
 
-.slider-panel__delta {
+.variable-panel__delta {
     font-family: 'Courier New', monospace;
     color: var(--text-secondary);
 }
 
-.slider-panel__delta--visible {
+.variable-panel__delta--visible {
     color: var(--primary-color);
     font-weight: 600;
 }
 
-.slider-panel__empty {
+.variable-panel__empty {
     text-align: center;
     padding: 2rem;
     color: var(--text-secondary);
+}
+
+/* Variable Panel Inputs */
+.variable-panel__value-input,
+.variable-panel__weight-input {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-family: 'Courier New', monospace;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.variable-panel__value-input {
+    width: 100px;
+}
+
+.variable-panel__weight-input {
+    width: 60px;
+}
+
+.variable-panel__value-input:focus,
+.variable-panel__weight-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+}
+
+.variable-panel__value-input:hover:not(:disabled),
+.variable-panel__weight-input:hover:not(:disabled) {
+    border-color: var(--primary-dark);
+}
+
+.variable-panel__value-input:disabled,
+.variable-panel__weight-input:disabled {
+    background: var(--background);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 /* ===== Control Buttons ===== */
@@ -492,6 +532,40 @@
 .metrics-panel__value--primary {
     color: var(--primary-color);
     font-size: 1.5rem;
+}
+
+.metrics-panel__group--full-width {
+    width: 100%;
+    grid-column: 1 / -1;
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.metrics-panel__group-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.metrics-panel__cmaes-items {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.metrics-panel__cmaes-items .metrics-panel__item {
+    padding: 1rem;
+    background: white;
+    border: 1px solid var(--border-color);
+}
+
+@media (min-width: 1400px) {
+    .metrics-panel__cmaes-items {
+        grid-template-columns: repeat(4, 1fr);
+    }
 }
 
 /* ===== Constraints Panel ===== */
@@ -898,24 +972,24 @@
 }
 
 /* ===== Scrollbar Styling ===== */
-.slider-panel__content::-webkit-scrollbar,
+.variable-panel__content::-webkit-scrollbar,
 .logs-panel__list::-webkit-scrollbar {
     width: 8px;
 }
 
-.slider-panel__content::-webkit-scrollbar-track,
+.variable-panel__content::-webkit-scrollbar-track,
 .logs-panel__list::-webkit-scrollbar-track {
     background: var(--background);
     border-radius: 4px;
 }
 
-.slider-panel__content::-webkit-scrollbar-thumb,
+.variable-panel__content::-webkit-scrollbar-thumb,
 .logs-panel__list::-webkit-scrollbar-thumb {
     background: var(--border-color);
     border-radius: 4px;
 }
 
-.slider-panel__content::-webkit-scrollbar-thumb:hover,
+.variable-panel__content::-webkit-scrollbar-thumb:hover,
 .logs-panel__list::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
 }
@@ -1061,7 +1135,7 @@
     color: var(--warning-color);
 }
 
-.snapshot-history__sliders {
+.snapshot-history__variables {
     font-family: 'Courier New', monospace;
     font-size: 0.8rem;
     max-width: 250px;
@@ -1295,19 +1369,29 @@
 }
 
 .export-panel__input,
-.export-panel__select {
-    padding: 0.5rem;
+.export-panel__select,
+.solver-params__select {
+    padding: 0.5rem 0.75rem;
     border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    background: var(--background);
+    border-radius: 4px;
+    background: white;
     color: var(--text-primary);
     font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.export-panel__select:hover,
+.solver-params__select:hover {
+    border-color: var(--primary-dark);
 }
 
 .export-panel__input:focus,
-.export-panel__select:focus {
+.export-panel__select:focus,
+.solver-params__select:focus {
     outline: none;
     border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
 }
 
 .export-panel__checkbox-label {

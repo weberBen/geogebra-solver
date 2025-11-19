@@ -3,8 +3,8 @@
     "title": "GeoGebra Viewer",
     "loading": "Loading GeoGebra..."
   },
-  "sliderPanel": {
-    "title": "Sliders",
+  "variablePanel": {
+    "title": "Variables",
     "selectAll": "Select All",
     "deselectAll": "Deselect All",
     "name": "Name",
@@ -12,7 +12,7 @@
     "weight": "Weight",
     "delta": "Δ",
     "bounds": "Bounds",
-    "noSliders": "No sliders available"
+    "noVariables": "No variables available"
   },
   "controlButtons": {
     "start": "Start Optimization",
@@ -29,11 +29,6 @@
     "repaintingModeAuto": "Auto (disable during, enable after)",
     "repaintingModeAlways": "Always (see live progress)",
     "repaintingModeNever": "Never (maximum performance)"
-  },
-  "objectiveParams": {
-    "title": "Objective Parameters",
-    "lambda": "Regularization (λ)",
-    "lambdaDescription": "Controls trade-off between distance minimization and slider changes"
   },
   "metricsPanel": {
     "title": "Metrics",
@@ -83,7 +78,7 @@
     "restore": "Restore",
     "columnTime": "Time",
     "columnType": "Type",
-    "columnSliders": "Slider Values",
+    "columnVariables": "Variable Values",
     "columnMetrics": "Metrics",
     "columnActions": "Actions",
     "typeBefore": "Before Optimization",
@@ -114,7 +109,7 @@
     "exportXML": "Export XML",
     "pngScale": "PNG Scale",
     "pngTransparent": "Transparent Background",
-    "hideDecorative": "Hide decorative elements (text, points, sliders, etc.)",
+    "hideDecorative": "Hide decorative elements (text, points, variables, etc.)",
     "webhookExport": "Server-Side Processing",
     "webhookUrl": "Webhook URL",
     "sourceFormat": "Source Format",

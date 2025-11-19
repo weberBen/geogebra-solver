@@ -101,28 +101,30 @@ export class MetricsPanel extends BaseModule {
                 : '-';
         };
 
-        // CMA-ES metrics section (if available)
-        const cmaesSection = cmaesMetrics ? `
-            <div class="metrics-panel__group">
+        // CMA-ES metrics section (always displayed)
+        const cmaesSection = `
+            <div class="metrics-panel__group metrics-panel__group--full-width">
                 <div class="metrics-panel__group-title">${t('metricsPanel.cmaesMetrics')}</div>
-                <div class="metrics-panel__item">
-                    <div class="metrics-panel__label">${t('metricsPanel.alPenalty')}</div>
-                    <div class="metrics-panel__value">${formatValue(cmaesMetrics.alPenalty)}</div>
-                </div>
-                <div class="metrics-panel__item">
-                    <div class="metrics-panel__label">${t('metricsPanel.hardViolation')}</div>
-                    <div class="metrics-panel__value">${formatValue(cmaesMetrics.hardViolation)}</div>
-                </div>
-                <div class="metrics-panel__item">
-                    <div class="metrics-panel__label">${t('metricsPanel.isFeasible')}</div>
-                    <div class="metrics-panel__value">${cmaesMetrics.isFeasible ? '✓' : '✗'}</div>
-                </div>
-                <div class="metrics-panel__item">
-                    <div class="metrics-panel__label">${t('metricsPanel.mu')}</div>
-                    <div class="metrics-panel__value">${formatValue(cmaesMetrics.mu, 2)}</div>
+                <div class="metrics-panel__cmaes-items">
+                    <div class="metrics-panel__item">
+                        <div class="metrics-panel__label">${t('metricsPanel.alPenalty')}</div>
+                        <div class="metrics-panel__value">${cmaesMetrics ? formatValue(cmaesMetrics.alPenalty) : '-'}</div>
+                    </div>
+                    <div class="metrics-panel__item">
+                        <div class="metrics-panel__label">${t('metricsPanel.hardViolation')}</div>
+                        <div class="metrics-panel__value">${cmaesMetrics ? formatValue(cmaesMetrics.hardViolation) : '-'}</div>
+                    </div>
+                    <div class="metrics-panel__item">
+                        <div class="metrics-panel__label">${t('metricsPanel.isFeasible')}</div>
+                        <div class="metrics-panel__value">${cmaesMetrics ? (cmaesMetrics.isFeasible ? '✓' : '✗') : '-'}</div>
+                    </div>
+                    <div class="metrics-panel__item">
+                        <div class="metrics-panel__label">${t('metricsPanel.mu')}</div>
+                        <div class="metrics-panel__value">${cmaesMetrics ? formatValue(cmaesMetrics.mu, 2) : '-'}</div>
+                    </div>
                 </div>
             </div>
-        ` : '';
+        `;
 
         this.innerHTML = `
             <div class="metrics-panel">
@@ -166,8 +168,8 @@ export class MetricsPanel extends BaseModule {
                                 </div>
                             </div>
                         </div>
-                        ${cmaesSection}
                     </div>
+                    ${cmaesSection}
                     <div class="metrics-panel__grid">
                         <div class="metrics-panel__item">
                             <div class="metrics-panel__label">${t('metricsPanel.generation')}</div>

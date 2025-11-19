@@ -29,7 +29,7 @@ This project is organized as a **monorepo** with npm workspaces:
 │       ├── src/
 │       │   ├── GeoGebraOptimizerUI.js
 │       │   ├── BaseModule.js
-│       │   └── modules/             # UI modules (SliderPanel, MetricsPanel, etc.)
+│       │   └── modules/             # UI modules (VariablePanel, MetricsPanel, etc.)
 │       ├── styles/
 │       ├── locales/                 # Translations (fr, en)
 │       └── package.json
@@ -99,7 +99,7 @@ The application will be accessible at **http://localhost:8000/**
 ### Using the optimizer
 
 1. **Initial loading**: Wait for Pyodide and CMA-ES to load (~10-30 seconds)
-2. **Slider selection**: Check/uncheck the sliders you want to optimize
+2. **Variable selection**: Check/uncheck the variables you want to optimize
 3. **Configuration**: Adjust solver parameters (optional)
 4. **Start**: Click on "Start optimization"
 5. **Monitoring**: Observe metrics, logs and history in real-time
@@ -109,20 +109,20 @@ The application will be accessible at **http://localhost:8000/**
 
 ### 🎨 GeoGebra Interface
 - Interactive display of geometric construction
-- Real-time manipulation of points and sliders
+- Real-time manipulation of points and variables
 - Live optimization visualization
 
 ### 🧬 CMA-ES Optimization with Hard Constraints
 - **Evolutionary algorithm**: CMA-ES with ConstrainedFitnessAL (Augmented Lagrangian)
-- **Objective function**: Minimize L2 penalty on slider changes
+- **Objective function**: Minimize L2 penalty on variable changes
 - **Hard constraint**: Distance between A' and A must be ≤ epsilon (configurable tolerance)
-- **Flexible selection**: Choose which sliders to optimize
+- **Flexible selection**: Choose which variables to optimize
 - **Configurable parameters**: maxiter, popsize, sigma, tolfun, epsilon
 
 ### 📊 Real-time Metrics
 - Current distance and best distance
 - Fitness and regularization penalty
-- Slider deltas
+- Variable deltas
 - Generation and number of evaluations
 - Progress bar
 
@@ -138,22 +138,36 @@ The application will be accessible at **http://localhost:8000/**
 
 ⚠️ **Note:** Vector exports have inherent precision limitations. See the [UI package documentation](./packages/geogebra-optimizer-ui/README.md#export-quality-warnings) for detailed warnings about DXF conversion, curve precision, and the included example server.
 
-## GeoGebra Conventions
+## GeoGebra Configuration & Constraints
 
-### Point Naming
+### Variable Configuration
 
-- **Starting point**: Your construction's starting point must be named **`A`**
-- **End point**: The end point (for closed figures) must be named **`A'`**
+GeoGebra variables can be configured using two checkboxes:
 
-The optimization goal is to minimize the distance between these two points.
+- **userVariable checkbox** (Advanced tab): Controls visibility in the Variables Panel UI
+  - Checked: Shown in UI, user can select/deselect
+  - Unchecked: Hidden from UI, automatically included in optimization
 
-### Hidden Sliders
+- **decoration checkbox** (Basic tab, "Show Object"): Controls visibility in GeoGebra viewer
+  - Checked: Visible as text/variable in the drawing
+  - Unchecked: Hidden from the drawing view
 
-Sliders can be hidden in GeoGebra:
-- **Optimization variables**: Hidden sliders are always used as variables
-- **UI display**: Hidden sliders are NOT displayed in the panel
-- **L2 penalty**: Hidden sliders are EXCLUDED from regularization penalty calculation
-- **Automatic selection**: Hidden sliders are automatically selected
+### Constraint-Based Optimization
+
+The optimizer uses **Augmented Lagrangian** method for constrained optimization:
+
+- **Hard Constraints** (equality, `op: "="`): Strict requirements (e.g., point coincidence)
+- **Soft Constraints** (inequality, `op: ">"` or `"<"`): Preferences with weights
+
+**Example:**
+```javascript
+constraints: [
+    { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 },  // Hard: A' = A
+    { expr: "AB", op: ">", value: 100, weight: 2 }                    // Soft: AB >= 100
+]
+```
+
+For complete documentation on constraints, GeoGebra configuration, and examples, see [geogebra-optimizer README](./packages/geogebra-optimizer/README.md#constraints).
 
 ## Package Development
 
@@ -169,8 +183,10 @@ await optimizer.init({
 });
 
 await optimizer.optimize({
-  selectedSliders: ['AB', 'BC', 'CD'],
-  epsilon: 1e-4,  // Constraint tolerance for distance A-A'
+  selectedVariables: ['AB', 'BC', 'CD'],
+  constraints: [
+    { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 }
+  ],
   solverParams: { maxiter: 100, popsize: 10 }
 });
 ```

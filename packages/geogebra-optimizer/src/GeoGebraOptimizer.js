@@ -25,7 +25,7 @@ import { ProgressTracker } from './ProgressTracker.js';
 
 /**
  * @typedef {Object} OptimizeOptions
- * @property {string[]} selectedSliders - Names of sliders to optimize
+ * @property {string[]} selectedVariables - Names of variables to optimize
  * @property {Constraint[]} [constraints] - List of constraints (defaults to Distance(A',A)=0)
  * @property {number} [defaultTolerance=1e-4] - Default tolerance for constraints without explicit tolerance
  * @property {Object} [solverParams] - CMA-ES solver parameters
@@ -72,8 +72,8 @@ import { ProgressTracker } from './ProgressTracker.js';
  * const optimizer = new GeoGebraOptimizer();
  *
  * // Listen to events
- * optimizer.on('ready', ({ ggbApi, sliders }) => {
- *   console.log('Ready with sliders:', sliders);
+ * optimizer.on('ready', ({ ggbApi, variables }) => {
+ *   console.log('Ready with variables:', variables);
  * });
  *
  * optimizer.on('optimization:newBest', ({ solution, metrics }) => {
@@ -90,10 +90,12 @@ import { ProgressTracker } from './ProgressTracker.js';
  *   }
  * });
  *
- * // Optimize
+ * // Optimize with constraints
  * await optimizer.optimize({
- *   selectedSliders: ['AB', 'BC', 'CD'],
- *   objectiveParams: { lambda: 0.01 },
+ *   selectedVariables: ['AB', 'BC', 'CD'],
+ *   constraints: [
+ *     { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 }
+ *   ],
  *   solverParams: { maxiter: 100 }
  * });
  */
@@ -127,7 +129,7 @@ export class GeoGebraOptimizer extends EventBus {
      * @fires GeoGebraOptimizer#pyodide:ready - When PyOdide is ready
      * @fires GeoGebraOptimizer#geogebra:loading - When GeoGebra starts loading
      * @fires GeoGebraOptimizer#geogebra:ready - When GeoGebra is ready
-     * @fires GeoGebraOptimizer#constraints:loaded - When sliders are detected
+     * @fires GeoGebraOptimizer#constraints:loaded - When variables are detected
      * @fires GeoGebraOptimizer#ready - When both are ready
      * @fires GeoGebraOptimizer#error - On initialization error
      *
@@ -157,7 +159,7 @@ export class GeoGebraOptimizer extends EventBus {
 
             // Forward events
             this.forwardEvents(this.pyodideManager, ['pyodide:loading', 'pyodide:ready', 'error', 'log']);
-            this.forwardEvents(this.geogebraManager, ['geogebra:loading', 'geogebra:ready', 'constraints:loaded', 'slider:changed', 'sliders:updated', 'error']);
+            this.forwardEvents(this.geogebraManager, ['geogebra:loading', 'geogebra:ready', 'constraints:loaded', 'variable:changed', 'variables:updated', 'error']);
 
             // Load PyOdide and GeoGebra in parallel
             await Promise.all([
@@ -187,7 +189,7 @@ export class GeoGebraOptimizer extends EventBus {
             this.state.isReady = true;
             this.emit('ready', {
                 ggbApi: this.geogebraManager.getAPI(),
-                sliders: this.geogebraManager.getSliders()
+                variables: this.geogebraManager.getVariables()
             });
         } catch (error) {
             this.emit('error', {
@@ -209,13 +211,13 @@ export class GeoGebraOptimizer extends EventBus {
 
     /**
      * Start optimization using CMA-ES algorithm.
-     * Optimizes selected sliders to minimize distance between points while
+     * Optimizes selected variables to minimize distance between points while
      * applying regularization to keep changes small.
      *
      * @async
      * @param {OptimizeOptions} options - Optimization options
      * @returns {Promise<void>}
-     * @throws {Error} If optimization is already running or no sliders selected
+     * @throws {Error} If optimization is already running or no variables selected
      *
      * @fires GeoGebraOptimizer#optimization:start - When optimization starts
      * @fires GeoGebraOptimizer#optimization:progress - On each generation
@@ -228,7 +230,7 @@ export class GeoGebraOptimizer extends EventBus {
      * @example
      * // Constrained optimization with default constraint (Distance(A',A) = 0)
      * await optimizer.optimize({
-     *   selectedSliders: ['AB', 'BC'],
+     *   selectedVariables: ['AB', 'BC'],
      *   defaultTolerance: 1e-4,
      *   solverParams: {
      *     maxiter: 100,
@@ -241,7 +243,7 @@ export class GeoGebraOptimizer extends EventBus {
      * @example
      * // Constrained optimization with custom constraints
      * await optimizer.optimize({
-     *   selectedSliders: ['AB', 'BC'],
+     *   selectedVariables: ['AB', 'BC'],
      *   constraints: [
      *     { expr: "Distance(A',A)", op: "=", value: 0, tolerance: 1e-4 },
      *     { expr: "Distance(A,B)", op: ">", value: 10, tolerance: 0.5 }
@@ -255,7 +257,7 @@ export class GeoGebraOptimizer extends EventBus {
      */
     async optimize(options) {
         const {
-            selectedSliders,
+            selectedVariables,
             constraints,
             defaultTolerance = 1e-4,
             solverParams = { maxiter: 100, popsize: 10, sigma: 0.5, tolfun: 1e-6, progressStep: 1 }
@@ -265,8 +267,8 @@ export class GeoGebraOptimizer extends EventBus {
             throw new Error('Optimization already running');
         }
 
-        if (!selectedSliders || selectedSliders.length === 0) {
-            throw new Error('No sliders selected');
+        if (!selectedVariables || selectedVariables.length === 0) {
+            throw new Error('No variables selected');
         }
 
         if (!constraints || constraints.length === 0) {
@@ -281,20 +283,20 @@ export class GeoGebraOptimizer extends EventBus {
         const maxEvaluations = solverParams.maxiter * solverParams.popsize;
         this.progressTracker = new ProgressTracker(maxEvaluations, solverParams.progressStep || 1);
 
-        this.emit('optimization:start', { selectedSliders, solverParams, constraints, defaultTolerance });
+        this.emit('optimization:start', { selectedVariables, solverParams, constraints, defaultTolerance });
 
         try {
             // Prepare bounds and initial values
             const bounds = { min: [], max: [], initial: [] };
-            const sliderObjects = [];
+            const variableObjects = [];
 
-            selectedSliders.forEach(name => {
-                const slider = this.geogebraManager.getSlider(name);
-                if (slider) {
-                    bounds.min.push(slider.min);
-                    bounds.max.push(slider.max);
-                    bounds.initial.push(slider.value);
-                    sliderObjects.push(slider);
+            selectedVariables.forEach(name => {
+                const variable = this.geogebraManager.getVariable(name);
+                if (variable) {
+                    bounds.min.push(variable.min);
+                    bounds.max.push(variable.max);
+                    bounds.initial.push(variable.value);
+                    variableObjects.push(variable);
                 }
             });
 
@@ -357,15 +359,15 @@ export class GeoGebraOptimizer extends EventBus {
                 // Prepare batch evaluation data
                 const evaluations = [];
                 for (const solution of solutions) {
-                    // Update sliders
-                    this.updateSliders(solution, selectedSliders);
+                    // Update variables
+                    this.updateVariables(solution, selectedVariables);
                     await new Promise(resolve => setTimeout(resolve, 50));
 
                     // Calculate objective and constraints
                     const result = this.calculateFitnessWithConstraints(
                         solution,
                         initialValues,
-                        sliderObjects,
+                        variableObjects,
                         constraints,
                         defaultTolerance
                     );
@@ -399,14 +401,14 @@ export class GeoGebraOptimizer extends EventBus {
                     // Update progress tracker and emit event if threshold crossed
                     const shouldNotify = this.progressTracker.update(totalEvaluations);
                     if (shouldNotify) {
-                        // Calculate current deltas and get slider values
-                        const currentDeltas = this.calculateCurrentDeltas(solution, initialValues, selectedSliders);
-                        const sliderValues = this.geogebraManager.getSliderValues();
+                        // Calculate current deltas and get variable values
+                        const currentDeltas = this.calculateCurrentDeltas(solution, initialValues, selectedVariables);
+                        const variableValues = this.geogebraManager.getVariableValues();
 
                         this.emit('optimization:progress-update', {
                             ...this.progressTracker.getProgress(),
                             deltas: currentDeltas,
-                            sliderValues: sliderValues
+                            variableValues: variableValues
                         });
                     }
 
@@ -424,7 +426,7 @@ export class GeoGebraOptimizer extends EventBus {
                         bestFeasibleSolution = [...solution];
 
                         // Calculer deltas
-                        const deltas = this.calculateDeltas(solution, initialValues, selectedSliders);
+                        const deltas = this.calculateDeltas(solution, initialValues, selectedVariables);
 
                         const metrics = {
                             bestObjective: evalData.objective,
@@ -440,7 +442,7 @@ export class GeoGebraOptimizer extends EventBus {
                         this.emit('optimization:newBest', {
                             solution,
                             metrics,
-                            deltas: deltas.sliderDeltas
+                            deltas: deltas.variableDeltas
                         });
 
                         this.emit('log', {
@@ -504,15 +506,15 @@ export class GeoGebraOptimizer extends EventBus {
             // Appliquer la meilleure solution faisable (ou meilleure solution si aucune faisable)
             const finalSolution = bestFeasibleSolution || bestSolution;
             if (finalSolution) {
-                this.updateSliders(finalSolution, selectedSliders);
+                this.updateVariables(finalSolution, selectedVariables);
                 const finalResult = this.calculateFitnessWithConstraints(
                     finalSolution,
                     initialValues,
-                    sliderObjects,
+                    variableObjects,
                     constraints,
                     defaultTolerance
                 );
-                const deltas = this.calculateDeltas(finalSolution, initialValues, selectedSliders);
+                const deltas = this.calculateDeltas(finalSolution, initialValues, selectedVariables);
 
                 const finalMetrics = {
                     bestObjective: bestFeasibleSolution ? bestFeasibleObjective : bestObjective,
@@ -538,7 +540,7 @@ export class GeoGebraOptimizer extends EventBus {
                 this.emit('optimization:complete', {
                     bestSolution: finalSolution,
                     finalMetrics,
-                    deltas: deltas.sliderDeltas,
+                    deltas: deltas.variableDeltas,
                     bestFeasibleFromCMAES: bestFeasibleFromCMAES  // Include CMA-ES best feasible
                 });
             }
@@ -567,14 +569,14 @@ export class GeoGebraOptimizer extends EventBus {
     }
 
     /**
-     * Update sliders with new values
+     * Update variables with new values
      */
-    updateSliders(values, selectedSliders) {
+    updateVariables(values, selectedVariables) {
         const updates = {};
-        selectedSliders.forEach((name, index) => {
+        selectedVariables.forEach((name, index) => {
             updates[name] = values[index];
         });
-        this.geogebraManager.setSliderValues(updates);
+        this.geogebraManager.setVariableValues(updates);
     }
 
     /**
@@ -702,18 +704,18 @@ export class GeoGebraOptimizer extends EventBus {
      *
      * Hard violations are retrieved from CMA-ES (not calculated here)
      */
-    calculateFitnessWithConstraints(currentValues, initialValues, sliderObjects, constraints, defaultTolerance) {
+    calculateFitnessWithConstraints(currentValues, initialValues, variableObjects, constraints, defaultTolerance) {
         // Movement penalty (minimize parameter changes)
         let movementPenalty = 0;
         if (currentValues && initialValues) {
             for (let i = 0; i < currentValues.length; i++) {
                 // Skip hidden parameters
-                if (sliderObjects[i]?.hidden) {
+                if (variableObjects[i]?.hidden) {
                     continue;
                 }
 
                 const diff = currentValues[i] - initialValues[i];
-                const weight = sliderObjects[i]?.weight ?? 1;
+                const weight = variableObjects[i]?.weight ?? 1;
                 movementPenalty += weight * diff * diff;
             }
         }
@@ -774,19 +776,19 @@ export class GeoGebraOptimizer extends EventBus {
     }
 
     /**
-     * Calculate deltas for each slider
+     * Calculate deltas for each variable
      */
-    calculateDeltas(currentValues, initialValues, selectedSliders) {
+    calculateDeltas(currentValues, initialValues, selectedVariables) {
         let totalDelta = 0;
-        const sliderDeltas = {};
+        const variableDeltas = {};
 
-        selectedSliders.forEach((name, index) => {
+        selectedVariables.forEach((name, index) => {
             const delta = currentValues[index] - initialValues[index];
             totalDelta += Math.abs(delta);
-            sliderDeltas[name] = delta;
+            variableDeltas[name] = delta;
         });
 
-        return { totalDelta, sliderDeltas };
+        return { totalDelta, variableDeltas };
     }
 
     /**
@@ -810,23 +812,23 @@ export class GeoGebraOptimizer extends EventBus {
     }
 
     /**
-     * Calculate deltas between current and initial slider values
+     * Calculate deltas between current and initial variable values
      * @param {number[]} currentValues - Current values
      * @param {number[]} initialValues - Initial values
-     * @param {string[]} selectedSliders - Names of selected sliders
-     * @returns {Object} Object with deltas { sliderName: delta, ... }
+     * @param {string[]} selectedVariables - Names of selected variables
+     * @returns {Object} Object with deltas { variableName: delta, ... }
      */
-    calculateCurrentDeltas(currentValues, initialValues, selectedSliders) {
+    calculateCurrentDeltas(currentValues, initialValues, selectedVariables) {
         const deltas = {};
 
-        if (!currentValues || !initialValues || !selectedSliders) {
+        if (!currentValues || !initialValues || !selectedVariables) {
             return deltas;
         }
 
-        for (let i = 0; i < selectedSliders.length; i++) {
-            const sliderName = selectedSliders[i];
+        for (let i = 0; i < selectedVariables.length; i++) {
+            const variableName = selectedVariables[i];
             const delta = currentValues[i] - initialValues[i];
-            deltas[sliderName] = delta;
+            deltas[variableName] = delta;
         }
 
         return deltas;
@@ -852,40 +854,40 @@ export class GeoGebraOptimizer extends EventBus {
     // Getters
 
     /**
-     * Get all available sliders from GeoGebra.
+     * Get all available variables from GeoGebra.
      *
-     * @returns {Array<Object>} Array of slider objects with name, min, max, value, etc.
+     * @returns {Array<Object>} Array of variable objects with name, min, max, value, etc.
      * @example
-     * const sliders = optimizer.getSliders();
-     * console.log(sliders[0]); // { name: 'AB', min: 0, max: 10, value: 5, ... }
+     * const variables = optimizer.getVariables();
+     * console.log(variables[0]); // { name: 'AB', min: 0, max: 10, value: 5, ... }
      */
-    getSliders() {
-        return this.geogebraManager.getSliders();
+    getVariables() {
+        return this.geogebraManager.getVariables();
     }
 
     /**
-     * Get a specific slider by name.
+     * Get a specific variable by name.
      *
-     * @param {string} name - Slider name
-     * @returns {Object|undefined} Slider object or undefined if not found
+     * @param {string} name - Variable name
+     * @returns {Object|undefined} Variable object or undefined if not found
      * @example
-     * const slider = optimizer.getSlider('AB');
-     * if (slider) console.log(slider.value);
+     * const variable = optimizer.getVariable('AB');
+     * if (variable) console.log(variable.value);
      */
-    getSlider(name) {
-        return this.geogebraManager.getSlider(name);
+    getVariable(name) {
+        return this.geogebraManager.getVariable(name);
     }
 
     /**
-     * Get current values of all sliders.
+     * Get current values of all variables.
      *
-     * @returns {Object<string, number>} Object mapping slider names to values
+     * @returns {Object<string, number>} Object mapping variable names to values
      * @example
-     * const values = optimizer.getSliderValues();
+     * const values = optimizer.getVariableValues();
      * console.log(values); // { AB: 5, BC: 3.2, CD: 7.8 }
      */
-    getSliderValues() {
-        return this.geogebraManager.getSliderValues();
+    getVariableValues() {
+        return this.geogebraManager.getVariableValues();
     }
 
     /**

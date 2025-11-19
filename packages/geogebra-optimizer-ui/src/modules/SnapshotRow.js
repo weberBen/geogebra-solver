@@ -24,7 +24,7 @@ export class SnapshotRow {
             <tr class="${rowClass}" data-snapshot-id="${snapshot.id}" data-pair-id="${pairId}">
                 ${this.renderTime(snapshot, t)}
                 ${this.renderType(snapshot, isAfter, t)}
-                ${this.renderSliders(snapshot, t)}
+                ${this.renderVariables(snapshot, t)}
                 ${this.renderMetrics(snapshot, t)}
                 ${this.renderActions(snapshot, t)}
             </tr>
@@ -106,49 +106,49 @@ export class SnapshotRow {
     }
 
     /**
-     * Render the slider values cell.
-     * Shows up to 3 sliders, then "..." if more.
+     * Render the variable values cell.
+     * Shows up to 3 variables, then "..." if more.
      *
      * @protected
      * @param {Object} snapshot - Snapshot data
      * @param {Function} t - Translation function
-     * @param {number} [maxDisplay=3] - Maximum sliders to display
-     * @returns {string} HTML for sliders cell
+     * @param {number} [maxDisplay=3] - Maximum variables to display
+     * @returns {string} HTML for variables cell
      */
-    static renderSliders(snapshot, t, maxDisplay = 3) {
-        const { sliderValues, selectedSliders } = snapshot;
-        const entries = Object.entries(sliderValues);
+    static renderVariables(snapshot, t, maxDisplay = 3) {
+        const { variableValues, selectedVariables } = snapshot;
+        const entries = Object.entries(variableValues);
 
-        // Show only selected sliders if available
-        const relevantSliders = selectedSliders && selectedSliders.length > 0
-            ? entries.filter(([name]) => selectedSliders.includes(name))
+        // Show only selected variables if available
+        const relevantVariables = selectedVariables && selectedVariables.length > 0
+            ? entries.filter(([name]) => selectedVariables.includes(name))
             : entries;
 
-        const displayed = relevantSliders.slice(0, maxDisplay);
-        const remaining = relevantSliders.length - maxDisplay;
+        const displayed = relevantVariables.slice(0, maxDisplay);
+        const remaining = relevantVariables.length - maxDisplay;
 
-        const sliderText = displayed
+        const variableText = displayed
             .map(([name, value]) => `${name}:${value.toFixed(2)}`)
             .join(', ');
 
         const moreText = remaining > 0 ? `, +${remaining}...` : '';
 
         return `
-            <td class="snapshot-history__sliders" title="${this.getFullSliderText(sliderValues)}">
-                ${sliderText}${moreText}
+            <td class="snapshot-history__variables" title="${this.getFullVariableText(variableValues)}">
+                ${variableText}${moreText}
             </td>
         `;
     }
 
     /**
-     * Get full slider text for tooltip.
+     * Get full variable text for tooltip.
      *
      * @protected
-     * @param {Object} sliderValues - Slider values object
-     * @returns {string} Full slider text
+     * @param {Object} variableValues - Variable values object
+     * @returns {string} Full variable text
      */
-    static getFullSliderText(sliderValues) {
-        return Object.entries(sliderValues)
+    static getFullVariableText(variableValues) {
+        return Object.entries(variableValues)
             .map(([name, value]) => `${name}: ${value.toFixed(3)}`)
             .join(', ');
     }

@@ -54,7 +54,7 @@ export class ConstraintsPanel extends BaseModule {
      *
      * @param {Object} metrics - Metrics object
      * @param {Array<number>} metrics.constraintValues - Current values for each constraint
-     * @param {number} metrics.l2Penalty - L2 penalty for sliders
+     * @param {number} metrics.l2Penalty - L2 penalty for variables
      * @param {number} metrics.hardPenalty - Hard constraints penalty
      * @param {number} metrics.softPenalty - Soft constraints penalty
      */
@@ -182,7 +182,7 @@ export class ConstraintsPanel extends BaseModule {
                 <div class="constraints-panel__content">
                     ${l2Penalty !== null ? `
                         <div class="constraints-panel__summary">
-                            <span class="constraints-panel__summary-label">L2 (sliders):</span>
+                            <span class="constraints-panel__summary-label">L2 (variables):</span>
                             <span class="constraints-panel__summary-value">${formatValue(l2Penalty)}</span>
                         </div>
                     ` : ''}

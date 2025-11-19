@@ -204,7 +204,7 @@ export class ExportManager extends EventBus {
      * @param {Object} [options={}] - Export options
      * @param {string} [options.filename='geogebra-export.svg'] - Output filename
      * @param {boolean} [options.download=true] - Auto-download the file
-     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, sliders, points, etc.)
+     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, variables, points, etc.)
      * @returns {Promise<string>} SVG content
      *
      * @example
@@ -299,7 +299,7 @@ export class ExportManager extends EventBus {
      * @param {boolean} [options.transparent=false] - Transparent background
      * @param {string} [options.filename='geogebra-export.png'] - Output filename
      * @param {boolean} [options.download=true] - Auto-download the file
-     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, sliders, points, etc.)
+     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, variables, points, etc.)
      * @returns {Promise<string>} PNG as base64 string
      *
      * @example
@@ -401,7 +401,7 @@ export class ExportManager extends EventBus {
      * @param {number} [options.scale=1] - Scale factor
      * @param {string} [options.filename='geogebra-export.pdf'] - Output filename
      * @param {boolean} [options.download=true] - Auto-download the file
-     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, sliders, points, etc.)
+     * @param {boolean} [options.hideDecorative=false] - Hide decorative elements (text, variables, points, etc.)
      * @returns {Promise<void>}
      *
      * @example

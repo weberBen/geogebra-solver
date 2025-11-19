@@ -2,14 +2,14 @@ import { EventBus } from './EventBus.js';
 import P from 'parsimmon';
 
 /**
- * GeoGebraManager - Manages GeoGebra and constraints (sliders)
+ * GeoGebraManager - Manages GeoGebra and constraints (variables)
  * Emits events for state tracking
  */
 export class GeoGebraManager extends EventBus {
     constructor(options = {}) {
         super();
         this.ggbApp = null;
-        this.sliders = [];
+        this.variables = [];
         this.constraints = [];
         this.options = {
             appName: 'geometry',
@@ -68,8 +68,8 @@ export class GeoGebraManager extends EventBus {
                                 api.setValue('userVariable', true);
                             }
 
-                            // Extract sliders
-                            await this.extractSliders(xmlContent);
+                            // Extract variables
+                            await this.extractVariables(xmlContent);
 
                             // Hide constraint text elements and checkboxes
                             this.hideConstraintElements();
@@ -96,44 +96,44 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Extract sliders from XML and GeoGebra API
+     * Extract variables from XML and GeoGebra API
      * @param {string} xmlContent - XML content
      */
-    async extractSliders(xmlContent) {
-        // Get all numeric objects (sliders)
+    async extractVariables(xmlContent) {
+        // Get all numeric objects (variables)
         const numericObjects = this.ggbApp.getAllObjectNames('numeric');
 
         // Parse XML to get bounds
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
 
-        this.sliders = [];
+        this.variables = [];
 
-        for (const sliderName of numericObjects) {
-            const elements = xmlDoc.querySelectorAll(`element[label="${sliderName}"]`);
+        for (const variableName of numericObjects) {
+            const elements = xmlDoc.querySelectorAll(`element[label="${variableName}"]`);
 
             for (const element of elements) {
                 if (element.getAttribute('type') === 'numeric') {
-                    const sliderElement = element.querySelector('slider');
+                    const variableElement = element.querySelector('slider');
 
-                    if (sliderElement) {
-                        const min = parseFloat(sliderElement.getAttribute('min'));
-                        const max = parseFloat(sliderElement.getAttribute('max'));
-                        const currentValue = this.ggbApp.getValue(sliderName);
-                        const step = sliderName.startsWith('ag') ? 1 : 0.1;
+                    if (variableElement) {
+                        const min = parseFloat(variableElement.getAttribute('min'));
+                        const max = parseFloat(variableElement.getAttribute('max'));
+                        const currentValue = this.ggbApp.getValue(variableName);
+                        const step = variableName.startsWith('ag') ? 1 : 0.1;
 
-                        // Detect if slider was hidden in GeoGebra (before we hide all sliders)
-                        const wasVisible = this.ggbApp.getVisible(sliderName);
+                        // Detect if variable was hidden in GeoGebra (before we hide all variables)
+                        const wasVisible = this.ggbApp.getVisible(variableName);
 
-                        this.sliders.push({
-                            name: sliderName,
-                            label: sliderName,
+                        this.variables.push({
+                            name: variableName,
+                            label: variableName,
                             min,
                             max,
                             value: currentValue,
                             default: currentValue,
                             step,
-                            hidden: !wasVisible  // true if slider was hidden in GeoGebra
+                            hidden: !wasVisible  // true if variable was hidden in GeoGebra
                         });
                     }
                     break;
@@ -141,79 +141,79 @@ export class GeoGebraManager extends EventBus {
             }
         }
 
-        // Hide sliders in GeoGebra
-        this.sliders.forEach(slider => {
-            this.ggbApp.setVisible(slider.name, false);
+        // Hide variables in GeoGebra
+        this.variables.forEach(variable => {
+            this.ggbApp.setVisible(variable.name, false);
         });
 
-        this.emit('constraints:loaded', { sliders: this.sliders });
+        this.emit('constraints:loaded', { variables: this.variables });
     }
 
     /**
-     * Return all sliders
+     * Return all variables
      */
-    getSliders() {
-        return this.sliders;
+    getVariables() {
+        return this.variables;
     }
 
     /**
-     * Return a specific slider
-     * @param {string} name - Slider name
+     * Return a specific variable
+     * @param {string} name - Variable name
      */
-    getSlider(name) {
-        return this.sliders.find(s => s.name === name);
+    getVariable(name) {
+        return this.variables.find(v => v.name === name);
     }
 
     /**
-     * Return current values of all sliders
+     * Return current values of all variables
      */
-    getSliderValues() {
+    getVariableValues() {
         const values = {};
-        this.sliders.forEach(slider => {
-            values[slider.name] = this.ggbApp.getValue(slider.name);
+        this.variables.forEach(variable => {
+            values[variable.name] = this.ggbApp.getValue(variable.name);
         });
         return values;
     }
 
     /**
-     * Set the value of a slider
-     * @param {string} name - Slider name
+     * Set the value of a variable
+     * @param {string} name - Variable name
      * @param {number} value - New value
      */
-    setSliderValue(name, value) {
-        const slider = this.getSlider(name);
-        if (!slider) {
-            throw new Error(`Slider "${name}" not found`);
+    setVariableValue(name, value) {
+        const variable = this.getVariable(name);
+        if (!variable) {
+            throw new Error(`Variable "${name}" not found`);
         }
 
         const oldValue = this.ggbApp.getValue(name);
         this.ggbApp.setValue(name, value);
 
         // Update in our cache
-        slider.value = value;
+        variable.value = value;
 
-        this.emit('slider:changed', {
+        this.emit('variable:changed', {
             name,
             value,
             oldValue,
-            allValues: this.getSliderValues()
+            allValues: this.getVariableValues()
         });
     }
 
     /**
-     * Set values of multiple sliders
-     * @param {Object} values - { sliderName: value, ... }
+     * Set values of multiple variables
+     * @param {Object} values - { variableName: value, ... }
      */
-    setSliderValues(values) {
+    setVariableValues(values) {
         Object.entries(values).forEach(([name, value]) => {
-            const slider = this.getSlider(name);
-            if (slider) {
+            const variable = this.getVariable(name);
+            if (variable) {
                 this.ggbApp.setValue(name, value);
-                slider.value = value;
+                variable.value = value;
             }
         });
 
-        this.emit('sliders:updated', { values });
+        this.emit('variables:updated', { values });
     }
 
     /**
@@ -228,10 +228,10 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Refresh sliders (useful if changes in GeoGebra)
+     * Refresh variables (useful if changes in GeoGebra)
      */
-    async refreshSliders(xmlContent) {
-        await this.extractSliders(xmlContent);
+    async refreshVariables(xmlContent) {
+        await this.extractVariables(xmlContent);
     }
 
     /**
@@ -303,7 +303,7 @@ export class GeoGebraManager extends EventBus {
 
         const decorativeTypes = [
             'text',       // Text
-            'numeric',    // Sliders + measurements (distance, area, slope)
+            'numeric',    // Variables + measurements (distance, area, slope)
             'angle',      // Angles and angle measurements
             'boolean',    // Checkboxes
             'button',     // Buttons
@@ -610,7 +610,7 @@ export class GeoGebraManager extends EventBus {
 
         this.ggbApp = null;
         this.container = null;
-        this.sliders = [];
+        this.variables = [];
         this.constraints = [];
         this.removeAllListeners();
     }

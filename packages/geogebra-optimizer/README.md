@@ -8,7 +8,7 @@ JavaScript library for optimizing GeoGebra constructions using the CMA-ES algori
 - 🐍 **Python in Browser** - Runs Python optimization code via PyOdide (WebAssembly)
 - 📐 **GeoGebra Integration** - Direct integration with GeoGebra applets
 - 📊 **Real-time Feedback** - Event-driven architecture for live updates
-- 🎯 **Regularization** - Built-in L2 regularization to minimize changes
+- 🎯 **Constraint-Based** - Augmented Lagrangian method for hard and soft constraints
 - 🔧 **Flexible** - Pure logic library, no UI dependencies
 
 ## Installation
@@ -25,8 +25,8 @@ import { GeoGebraOptimizer } from 'geogebra-optimizer';
 const optimizer = new GeoGebraOptimizer();
 
 // Listen to events
-optimizer.on('ready', ({ ggbApi, sliders }) => {
-    console.log('Ready with sliders:', sliders);
+optimizer.on('ready', ({ ggbApi, variables }) => {
+    console.log('Ready with variables:', variables);
 });
 
 optimizer.on('optimization:newBest', ({ solution, metrics }) => {
@@ -43,10 +43,12 @@ await optimizer.init({
     }
 });
 
-// Start optimization
+// Start optimization with constraints
 await optimizer.optimize({
-    selectedSliders: ['AB', 'BC', 'CD'],
-    objectiveParams: { lambda: 0.01 },
+    selectedVariables: ['AB', 'BC', 'CD'],
+    constraints: [
+        { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 }
+    ],
     solverParams: { maxiter: 100, popsize: 10 }
 });
 ```
@@ -63,12 +65,12 @@ The optimizer emits events throughout its lifecycle:
 - **`pyodide:ready`** - PyOdide loaded and ready
 - **`geogebra:loading`** - GeoGebra starts loading
 - **`geogebra:ready`** - GeoGebra loaded, receives `{ api }`
-- **`constraints:loaded`** - Sliders detected, receives `{ sliders }`
-- **`ready`** - Both ready, receives `{ ggbApi, sliders }`
+- **`constraints:loaded`** - Variables detected, receives `{ variables }`
+- **`ready`** - Both ready, receives `{ ggbApi, variables }`
 
 #### Optimization Events
 
-- **`optimization:start`** - Optimization started, receives `{ selectedSliders, objectiveParams, solverParams }`
+- **`optimization:start`** - Optimization started, receives `{ selectedVariables, constraints, solverParams }`
 - **`optimization:progress`** - Progress update, receives `{ generation, evaluations, metrics }`
 - **`optimization:newBest`** - Better solution found, receives `{ solution, metrics, deltas }`
 - **`optimization:complete`** - Optimization finished, receives `{ bestSolution, finalMetrics }`
@@ -76,7 +78,7 @@ The optimizer emits events throughout its lifecycle:
 
 #### Other Events
 
-- **`slider:changed`** - Slider value changed, receives `{ name, value, oldValue, allValues }`
+- **`variable:changed`** - Variable value changed, receives `{ name, value, oldValue, allValues }`
 - **`log`** - Log message, receives `{ message, level, timestamp }`
 - **`error`** - Error occurred, receives `{ error, context }`
 
@@ -115,12 +117,13 @@ await optimizer.init({
 
 #### `optimize(options)`
 
-Start optimization using CMA-ES algorithm.
+Start constrained optimization using CMA-ES with Augmented Lagrangian method.
 
 **Parameters:**
-- `options.selectedSliders` (string[]) - Slider names to optimize
-- `options.objectiveParams` (Object, optional) - Objective function parameters
-  - `lambda` (number, default: 0.01) - Regularization parameter
+- `options.selectedVariables` (string[]) - Variable names to optimize
+- `options.constraints` (Array<Object>, optional) - Constraint definitions (see Constraints section below)
+  - Each constraint: `{ expr, op, value, tolerance, weight? }`
+- `options.defaultTolerance` (number, default: 1e-4) - Default tolerance for constraints
 - `options.solverParams` (Object, optional) - CMA-ES solver parameters
   - `maxiter` (number, default: 100) - Maximum iterations
   - `popsize` (number, default: 10) - Population size
@@ -132,8 +135,12 @@ Start optimization using CMA-ES algorithm.
 **Example:**
 ```javascript
 await optimizer.optimize({
-    selectedSliders: ['AB', 'BC'],
-    objectiveParams: { lambda: 0.01 },
+    selectedVariables: ['AB', 'BC'],
+    constraints: [
+        { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 },
+        { expr: "AB", op: ">", value: 5, weight: 2 }
+    ],
+    defaultTolerance: 1e-4,
     solverParams: {
         maxiter: 100,
         popsize: 10,
@@ -152,28 +159,28 @@ Stop the currently running optimization.
 optimizer.stop();
 ```
 
-#### `getSliders()`
+#### `getVariables()`
 
-Get all available sliders from GeoGebra.
+Get all available variables from GeoGebra.
 
-**Returns:** `Array<Object>` - Array of slider objects
+**Returns:** `Array<Object>` - Array of variable objects
 
 **Example:**
 ```javascript
-const sliders = optimizer.getSliders();
-console.log(sliders);
+const variables = optimizer.getVariables();
+console.log(variables);
 // [
 //   { name: 'AB', min: 0, max: 10, value: 5, default: 5, step: 0.1 },
 //   { name: 'BC', min: 0, max: 10, value: 3, default: 3, step: 0.1 }
 // ]
 ```
 
-#### `getSlider(name)`
+#### `getVariable(name)`
 
-Get a specific slider by name.
+Get a specific variable by name.
 
 **Parameters:**
-- `name` (string) - Slider name
+- `name` (string) - Variable name
 
 **Returns:** `Object|undefined`
 
@@ -206,6 +213,169 @@ const result = await pyodide.runPythonAsync('2 + 2');
 Get current optimizer state.
 
 **Returns:** `Object` - State object with `isReady`, `isOptimizing`, etc.
+
+## GeoGebra Configuration
+
+### Variable Configuration with Checkboxes
+
+GeoGebra allows you to configure variables (numeric values) with two important checkboxes in the object properties:
+
+#### **userVariable** Checkbox
+
+Located in the "Advanced" tab of object properties, this checkbox determines:
+- **When checked**: The variable appears in the **Variables Panel** UI and can be selected for optimization
+- **When unchecked**: The variable is **hidden** from the Variables Panel but still exists in GeoGebra
+- **Default behavior**: Unchecked variables are automatically included in optimization but not shown in the UI
+
+**Use cases:**
+- Check for variables you want users to manually select/deselect (e.g., construction parameters)
+- Uncheck for internal variables that should always be optimized but hidden from UI (e.g., auxiliary angles)
+
+#### **decoration** Checkbox
+
+Located in the "Basic" tab of object properties under "Show Object", this checkbox determines:
+- **When checked**: The variable is **visible** in the GeoGebra drawing (appears as text/slider)
+- **When unchecked**: The variable is **hidden** from the GeoGebra viewer but still functional
+
+**Use cases:**
+- Uncheck to hide auxiliary variables from cluttering the construction view
+- Check to show important parameters users should see
+
+**Example Configuration:**
+
+| Variable | userVariable | decoration | Result |
+|----------|--------------|------------|--------|
+| AB (length) | ✓ checked | ✓ checked | Visible in GeoGebra, shown in Variables Panel |
+| angle_aux | ✗ unchecked | ✗ unchecked | Hidden everywhere, auto-optimized |
+| BC (length) | ✓ checked | ✗ unchecked | Hidden in GeoGebra, shown in Variables Panel |
+
+## Constraints
+
+The optimizer uses **Augmented Lagrangian** method to handle constraints. Constraints define conditions that the optimized solution must satisfy.
+
+### Constraint Types
+
+#### Hard Constraints (Equality: `op: "="`)
+Strict requirements that **must** be satisfied (e.g., `Distance(A', A) = 0`).
+- Enforced with high penalty
+- Used for geometric requirements (coincidence, perpendicularity, etc.)
+
+#### Soft Constraints (Inequality: `op: ">"`, `op: "<"`)
+Preferences that should be satisfied when possible but can be violated.
+- Lower penalty, can be weighted
+- Used for design preferences (minimum lengths, angle ranges, etc.)
+
+### Constraint Format
+
+```javascript
+{
+    expr: string,      // GeoGebra expression to evaluate
+    op: "=" | ">" | "<",  // Operator
+    value: number,     // Target value
+    tolerance: number, // Tolerance for "=" constraints (default: 1e-4)
+    weight: number     // Weight for soft constraints (default: 1)
+}
+```
+
+### Constraint Examples
+
+#### Example 1: Point Coincidence
+```javascript
+{
+    expr: "Distance(A', A)",  // Distance between A' and A
+    op: "=",                   // Must equal
+    value: 0,                  // Zero
+    tolerance: 1e-4            // Within 0.0001 units
+}
+```
+**Interpretation**: Point A' must coincide with point A (hard constraint).
+
+#### Example 2: Minimum Length
+```javascript
+{
+    expr: "AB",        // Length variable
+    op: ">",           // Must be greater than
+    value: 5,          // 5 units
+    weight: 2          // Higher priority (default: 1)
+}
+```
+**Interpretation**: Length AB should be at least 5 units (soft constraint, weighted 2x).
+
+#### Example 3: Angle Range
+```javascript
+{
+    expr: "angle",
+    op: ">",
+    value: 30
+},
+{
+    expr: "angle",
+    op: "<",
+    value: 150
+}
+```
+**Interpretation**: Angle should be between 30° and 150°.
+
+#### Example 4: Multiple Points Coincidence
+```javascript
+constraints: [
+    { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 },
+    { expr: "Distance(B', B)", op: "=", value: 0, tolerance: 1e-4 },
+    { expr: "Distance(C', C)", op: "=", value: 0, tolerance: 1e-4 }
+]
+```
+**Use case**: Fitting a triangle A'B'C' onto target points A, B, C.
+
+### Complete Optimization Example
+
+```javascript
+// Optimize a quadrilateral ABCD to match target shape A'B'C'D'
+// while maintaining minimum side lengths
+await optimizer.optimize({
+    selectedVariables: ['AB', 'BC', 'CD', 'angleABC', 'angleBCD'],
+
+    constraints: [
+        // Hard constraints: vertices must coincide
+        { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 },
+        { expr: "Distance(B', B)", op: "=", value: 0, tolerance: 1e-4 },
+        { expr: "Distance(C', C)", op: "=", value: 0, tolerance: 1e-4 },
+        { expr: "Distance(D', D)", op: "=", value: 0, tolerance: 1e-4 },
+
+        // Soft constraints: minimum side lengths
+        { expr: "AB", op: ">", value: 100, weight: 1 },
+        { expr: "BC", op: ">", value: 100, weight: 1 },
+        { expr: "CD", op: ">", value: 100, weight: 1 },
+
+        // Soft constraint: angle range
+        { expr: "angleABC", op: ">", value: 90, weight: 0.5 },
+        { expr: "angleABC", op: "<", value: 180, weight: 0.5 }
+    ],
+
+    defaultTolerance: 1e-4,
+
+    solverParams: {
+        maxiter: 200,
+        popsize: 15,
+        sigma: 0.5,
+        tolfun: 1e-6
+    }
+});
+```
+
+### How Constraints Work Internally
+
+1. **Augmented Lagrangian**: Combines objective function with constraint penalties
+2. **Penalty Updates**: Automatically increases penalties for violated constraints
+3. **Feasibility Tracking**: Monitors constraint violations and reports in metrics
+4. **Adaptive Weighting**: Balances hard constraints (equality) vs soft constraints (inequality)
+
+### Constraint Tips
+
+- **Tolerance**: Use `1e-4` to `1e-6` for geometric precision
+- **Weights**: Higher weights (2-5) prioritize certain soft constraints
+- **Redundancy**: Avoid redundant constraints (e.g., `AB > 5` and `AB > 10`)
+- **Feasibility**: Ensure constraints don't contradict each other
+- **Start Simple**: Begin with hard constraints only, then add soft constraints
 
 ## Python Integration
 
@@ -254,7 +424,7 @@ See [`/examples/web-components-ui/python/`](../../examples/web-components-ui/pyt
 optimizer.on('optimization:newBest', ({ solution, metrics, deltas }) => {
     console.log(`Generation ${metrics.generation}`);
     console.log(`Best distance: ${metrics.bestDistance}`);
-    console.log('Slider changes:', deltas);
+    console.log('Variable changes:', deltas);
 });
 
 // One-time listener
@@ -427,7 +597,7 @@ await opt.init({
 
 // Start optimization
 await opt.optimize({
-    selectedSliders: ['AB', 'BC', 'CD'],
+    selectedVariables: ['AB', 'BC', 'CD'],
     objectiveParams: { lambda: 0.01 },
     solverParams: { maxiter: 50 }
 });

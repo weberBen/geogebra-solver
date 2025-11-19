@@ -12,11 +12,10 @@ export { BaseModule } from './src/BaseModule.js';
 
 // UI Modules/Components
 export { GeoGebraFrame } from './src/modules/GeoGebraFrame.js';
-export { SliderPanel } from './src/modules/SliderPanel.js';
-export { SliderRow } from './src/modules/SliderRow.js';
+export { VariablePanel } from './src/modules/VariablePanel.js';
+export { VariableRow } from './src/modules/VariableRow.js';
 export { ControlButtons } from './src/modules/ControlButtons.js';
 export { SolverParams } from './src/modules/SolverParams.js';
-export { ObjectiveParams } from './src/modules/ObjectiveParams.js';
 export { MetricsPanel } from './src/modules/MetricsPanel.js';
 export { LogsPanel } from './src/modules/LogsPanel.js';
 export { SnapshotHistory } from './src/modules/SnapshotHistory.js';
@@ -47,9 +46,9 @@ export async function loadLocale(locale) {
  * @returns {Function} Localization function
  * @example
  * import { createLocalizeFunction } from 'geogebra-optimizer-ui';
- * const translations = { sliderPanel: { title: 'Curseurs' } };
+ * const translations = { variablePanel: { title: 'Variables' } };
  * const t = createLocalizeFunction(translations);
- * console.log(t('sliderPanel.title')); // 'Curseurs'
+ * console.log(t('variablePanel.title')); // 'Variables'
  */
 export function createLocalizeFunction(translations) {
     return function localize(key) {

@@ -37,48 +37,48 @@ export class SnapshotHistory extends BaseModule {
     /**
      * Capture a "before" snapshot at optimization start.
      *
-     * @param {Object} sliderValues - Current slider values
-     * @param {string[]} selectedSliders - Sliders being optimized
+     * @param {Object} variableValues - Current variable values
+     * @param {string[]} selectedVariables - Variables being optimized
      */
-    captureBeforeSnapshot(sliderValues, selectedSliders) {
+    captureBeforeSnapshot(variableValues, selectedVariables) {
         this.manager.startOptimization();
         this.manager.createSnapshot({
             type: 'before-optimization',
-            sliderValues,
-            selectedSliders
+            variableValues,
+            selectedVariables
         });
     }
 
     /**
      * Capture an "after" snapshot at optimization end.
      *
-     * @param {Object} sliderValues - Final slider values
+     * @param {Object} variableValues - Final variable values
      * @param {Object} metrics - Optimization metrics
      * @param {string} status - 'complete' | 'stopped'
      */
-    captureAfterSnapshot(sliderValues, metrics, status) {
-        const selectedSliders = this.getLastSelectedSliders();
+    captureAfterSnapshot(variableValues, metrics, status) {
+        const selectedVariables = this.getLastSelectedVariables();
 
         this.manager.createSnapshot({
             type: status === 'complete'
                 ? 'after-optimization-complete'
                 : 'after-optimization-stopped',
-            sliderValues,
-            selectedSliders,
+            variableValues,
+            selectedVariables,
             metrics
         });
     }
 
     /**
-     * Get selected sliders from the last "before" snapshot.
+     * Get selected variables from the last "before" snapshot.
      *
      * @private
-     * @returns {string[]} Array of slider names
+     * @returns {string[]} Array of variable names
      */
-    getLastSelectedSliders() {
+    getLastSelectedVariables() {
         const snapshots = this.manager.getSnapshots();
         const lastBefore = snapshots.find(s => s.type === 'before-optimization');
-        return lastBefore ? lastBefore.selectedSliders : [];
+        return lastBefore ? lastBefore.selectedVariables : [];
     }
 
     /**
@@ -117,18 +117,18 @@ export class SnapshotHistory extends BaseModule {
 
         // Calculate deltas relative to previous snapshot
         const deltas = {};
-        Object.keys(snapshot.sliderValues).forEach(sliderName => {
-            const currentValue = snapshot.sliderValues[sliderName];
+        Object.keys(snapshot.variableValues).forEach(variableName => {
+            const currentValue = snapshot.variableValues[variableName];
             const previousValue = previousSnapshot
-                ? (previousSnapshot.sliderValues[sliderName] || 0)
+                ? (previousSnapshot.variableValues[variableName] || 0)
                 : currentValue;  // If first snapshot, delta = 0
-            deltas[sliderName] = currentValue - previousValue;
+            deltas[variableName] = currentValue - previousValue;
         });
 
         // Emit event for parent to handle
         this.emit('restore-snapshot', {
             snapshot,
-            sliderValues: snapshot.sliderValues,
+            variableValues: snapshot.variableValues,
             deltas
         });
     }
@@ -209,7 +209,7 @@ export class SnapshotHistory extends BaseModule {
                     <tr>
                         <th>${t('snapshotHistory.columnTime')}</th>
                         <th>${t('snapshotHistory.columnType')}</th>
-                        <th>${t('snapshotHistory.columnSliders')}</th>
+                        <th>${t('snapshotHistory.columnVariables')}</th>
                         <th>${t('snapshotHistory.columnMetrics')}</th>
                         <th>${t('snapshotHistory.columnActions')}</th>
                     </tr>
