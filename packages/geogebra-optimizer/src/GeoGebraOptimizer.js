@@ -26,7 +26,7 @@ import { ProgressTracker } from './ProgressTracker.js';
 /**
  * @typedef {Object} OptimizeOptions
  * @property {string[]} selectedVariables - Names of variables to optimize
- * @property {Constraint[]} [constraints] - List of constraints (defaults to Distance(A',A)=0)
+ * @property {Constraint[]} [constraints] - List of constraints
  * @property {number} [defaultTolerance=1e-4] - Default tolerance for constraints without explicit tolerance
  * @property {Object} [solverParams] - CMA-ES solver parameters
  * @property {number} [solverParams.maxiter=100] - Maximum iterations
@@ -228,7 +228,7 @@ export class GeoGebraOptimizer extends EventBus {
      * @fires GeoGebraOptimizer#log - For informational messages
      *
      * @example
-     * // Constrained optimization with default constraint (Distance(A',A) = 0)
+     * // Constrained optimization with
      * await optimizer.optimize({
      *   selectedVariables: ['AB', 'BC'],
      *   defaultTolerance: 1e-4,

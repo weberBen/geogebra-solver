@@ -244,25 +244,6 @@ export class GeoGebraManager extends EventBus {
     }
 
     /**
-     * Calculate the distance between two points
-     * @param {string} point1 - Name of the first point
-     * @param {string} point2 - Name of the second point
-     */
-    calculateDistance(point1 = 'A', point2 = "A'") {
-        try {
-            const x1 = this.ggbApp.getXcoord(point1);
-            const y1 = this.ggbApp.getYcoord(point1);
-            const x2 = this.ggbApp.getXcoord(point2);
-            const y2 = this.ggbApp.getYcoord(point2);
-
-            return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-        } catch (e) {
-            console.error("Distance calculation error:", e);
-            return NaN;
-        }
-    }
-
-    /**
      * Hide constraint text elements and checkboxes from view
      * Called during initialization to keep the figure clean
      */
