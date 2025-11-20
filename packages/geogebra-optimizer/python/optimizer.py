@@ -3,7 +3,6 @@ CMA-ES optimizer for GeoGebra with hard constraints (ConstrainedFitnessAL)
 """
 import cma
 import json
-import numpy as np
 
 
 # Storage for current evaluation values (set from JavaScript)
