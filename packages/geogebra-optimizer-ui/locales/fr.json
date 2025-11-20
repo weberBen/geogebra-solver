@@ -57,7 +57,7 @@
   },
   "geogebraEvaluator": {
     "title": "Évaluateur GeoGebra",
-    "placeholder": "Entrez une expression GeoGebra (ex: Distance[A, A'])",
+    "placeholder": "Entrez une expression GeoGebra (ex: Distance(A, A'))",
     "evaluate": "Évaluer",
     "result": "Résultat",
     "error": "Erreur"

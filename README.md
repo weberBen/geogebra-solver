@@ -158,8 +158,8 @@ The optimizer uses **Augmented Lagrangian** method for constrained optimization:
 **Example:**
 ```javascript
 constraints: [
-    { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 },  // Hard: A' = A
-    { expr: "AB", op: ">", value: 100, weight: 2 }                    // Soft: AB >= 100
+    { expr: "Distance(A', A)", op: "=", value: 0 },  // Hard: A' = A
+    { expr: "AB", op: ">", value: 100, weight: 2 }   // Soft: AB >= 100
 ]
 ```
 
@@ -181,7 +181,7 @@ await optimizer.init({
 await optimizer.optimize({
   selectedVariables: ['AB', 'BC', 'CD'],
   constraints: [
-    { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 }
+    { expr: "Distance(A', A)", op: "=", value: 0 }
   ],
   solverParams: { maxiter: 100, popsize: 10 }
 });

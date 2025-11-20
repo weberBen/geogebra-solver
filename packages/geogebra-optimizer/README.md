@@ -47,7 +47,7 @@ await optimizer.init({
 await optimizer.optimize({
     selectedVariables: ['AB', 'BC', 'CD'],
     constraints: [
-        { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 }
+        { expr: "Distance(A', A)", op: "=", value: 0 }
     ],
     solverParams: { maxiter: 100, popsize: 10 }
 });
@@ -137,7 +137,7 @@ Start constrained optimization using CMA-ES with Augmented Lagrangian method.
 await optimizer.optimize({
     selectedVariables: ['AB', 'BC'],
     constraints: [
-        { expr: "Distance(A', A)", op: "=", value: 0, tolerance: 1e-4 },
+        { expr: "Distance(A', A)", op: "=", value: 0 },
         { expr: "AB", op: ">", value: 5, weight: 2 }
     ],
     defaultTolerance: 1e-4,

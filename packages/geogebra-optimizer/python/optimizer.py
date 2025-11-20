@@ -8,11 +8,12 @@ import json
 # Storage for current evaluation values (set from JavaScript)
 _current_objective = None
 _current_constraints = []  # List of constraint values (AL-transformed)
+cfun = None  # ConstrainedFitnessAL instance (set by initialize_optimizer)
 
 
-def initialize_optimizer(initial_guess, bounds_min, bounds_max, sigma=0.5, maxiter=100, popsize=10, tolfun=1e-6):
+def initialize_optimizer(initial_guess, bounds_min, bounds_max, sigma=0.5, maxiter=100, popsize=10, tolfun=1e-6, has_constraints=True):
     """
-    Initialize CMA-ES optimizer with ConstrainedFitnessAL
+    Initialize CMA-ES optimizer with or without ConstrainedFitnessAL
 
     Args:
         initial_guess: Initial parameter values
@@ -22,10 +23,13 @@ def initialize_optimizer(initial_guess, bounds_min, bounds_max, sigma=0.5, maxit
         maxiter: Maximum number of iterations
         popsize: Population size
         tolfun: Tolerance on objective function
+        has_constraints: Whether to use ConstrainedFitnessAL (default True)
 
     Returns:
-        Tuple (CMA-ES optimizer, ConstrainedFitnessAL)
+        Tuple (CMA-ES optimizer, ConstrainedFitnessAL or None)
     """
+    global cfun
+
     bounds = [bounds_min, bounds_max]
 
     opts = {
@@ -38,6 +42,11 @@ def initialize_optimizer(initial_guess, bounds_min, bounds_max, sigma=0.5, maxit
     }
 
     es = cma.CMAEvolutionStrategy(initial_guess, sigma, opts)
+
+    # If no constraints, return None as cfun
+    if not has_constraints:
+        cfun = None
+        return es, None
 
     # Define wrapper functions that use stored values
     def objective_wrapper(x):
@@ -83,13 +92,15 @@ def tell_results(es, solutions, fitnesses, cfun):
         es: CMA-ES optimizer
         solutions: Evaluated solutions
         fitnesses: Corresponding fitness values
-        cfun: ConstrainedFitnessAL instance
+        cfun: ConstrainedFitnessAL instance or None
 
     Returns:
         "ok"
     """
     es.tell(solutions, fitnesses)
-    cfun.update(es)
+    # Only update AL coefficients if we have constraints
+    if cfun is not None:
+        cfun.update(es)
     return "ok"
 
 
@@ -98,11 +109,15 @@ def get_best_feasible(cfun):
     Retrieve the best feasible solution found
 
     Args:
-        cfun: ConstrainedFitnessAL instance
+        cfun: ConstrainedFitnessAL instance or None
 
     Returns:
         JSON with {solution, objective, feasible} or None if no feasible solution
     """
+    # If no constraints, there's no best_feas to return
+    if cfun is None:
+        return json.dumps(None)
+
     if cfun.best_feas is None or cfun.best_feas.x is None:
         return json.dumps(None)
 
@@ -211,7 +226,7 @@ def evaluate_batch(evaluations):
             'cmaesMetrics': {...}  # Exact metrics from last eval
         }
     """
-    global _current_objective, _current_constraints
+    global _current_objective, _current_constraints, cfun
 
     fitnesses = []
     feasibilities = []
@@ -224,17 +239,22 @@ def evaluate_batch(evaluations):
         _current_objective = eval_data['objective']
         _current_constraints = eval_data['alConstraints']
 
-        # Evaluate with ConstrainedFitnessAL
-        fitness = cfun(solution)
-        feasible = is_feasible(cfun)
+        # If no constraints (cfun is None), use objective directly
+        if cfun is None:
+            fitness = _current_objective
+            feasible = True  # Always feasible if no constraints
+        else:
+            # Evaluate with ConstrainedFitnessAL
+            fitness = cfun(solution)
+            feasible = is_feasible(cfun)
 
         fitnesses.append(float(fitness))
         feasibilities.append(feasible)
         last_solution = solution
 
-    # Get EXACT metrics from last eval
+    # Get EXACT metrics from last eval (only if constraints exist)
     cmaes_metrics = None
-    if last_solution is not None:
+    if last_solution is not None and cfun is not None:
         metrics_json = get_cmaes_metrics(cfun, last_solution)
         cmaes_metrics = json.loads(metrics_json) if metrics_json else None
 
