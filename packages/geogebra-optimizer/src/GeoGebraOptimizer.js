@@ -258,7 +258,7 @@ export class GeoGebraOptimizer extends EventBus {
     async optimize(options) {
         const {
             selectedVariables,
-            constraints,
+            constraints: rawConstraints,
             defaultTolerance = 1e-4,
             solverParams = { maxiter: 100, popsize: 10, sigma: 0.5, tolfun: 1e-6, progressStep: 1 }
         } = options;
@@ -271,13 +271,17 @@ export class GeoGebraOptimizer extends EventBus {
             throw new Error('No variables selected');
         }
 
-        if (!constraints || constraints.length === 0) {
+        // Handle empty or missing constraints
+        let constraints;
+        if (!rawConstraints || rawConstraints.length === 0) {
             console.warn('No constraints provided. Optimization will run with objective function only.');
             this.emit('log', {
                 level: 'warning',
                 message: 'No constraints provided. Optimization will run with objective function only.'
             });
             constraints = []; // Initialize as empty array to avoid undefined errors
+        } else {
+            constraints = rawConstraints;
         }
 
         this.optimizationRunning = true;
@@ -305,7 +309,9 @@ export class GeoGebraOptimizer extends EventBus {
                 }
             });
 
-            // Initialize CMA-ES optimizer with ConstrainedFitnessAL
+            // Initialize CMA-ES optimizer with or without ConstrainedFitnessAL
+            const hasConstraints = constraints.length > 0 ? 'True' : 'False';
+            
             const initCode = `
             es, cfun = initialize_optimizer(
                 ${JSON.stringify(bounds.initial)},
@@ -314,7 +320,8 @@ export class GeoGebraOptimizer extends EventBus {
                 sigma=${solverParams.sigma},
                 maxiter=${solverParams.maxiter},
                 popsize=${solverParams.popsize},
-                tolfun=${solverParams.tolfun}
+                tolfun=${solverParams.tolfun},
+                has_constraints=${hasConstraints}
             )
             "initialized"
             `;
