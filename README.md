@@ -228,7 +228,3 @@ await ui.init({ geogebraXML: xmlContent });
 - [PyOdide Documentation](https://pyodide.org/en/stable/)
 - [CMA-ES Python Library](https://github.com/CMA-ES/pycma)
 - [CMA-ES Algorithm](https://en.wikipedia.org/wiki/CMA-ES)
-
-## Disclaimer
-
-Used with Claude Code 2.0.42
